@@ -17,10 +17,17 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux
+            shell: bash
           - os: windows-latest
             platform: windows
+            shell: pwsh
           - os: macos-latest
             platform: macos
+            shell: bash
+
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
 
     steps:
     - name: Checkout code
@@ -54,7 +61,6 @@ jobs:
 
     - name: Build React app (Windows)
       if: matrix.platform == 'windows'
-      shell: pwsh
       run: |
         $env:NODE_OPTIONS="--openssl-legacy-provider"
         npm run react-build
@@ -68,7 +74,6 @@ jobs:
 
     - name: List build artifacts (Windows)
       if: matrix.platform == 'windows'
-      shell: pwsh
       run: |
         if (Test-Path "dist") {
           Get-ChildItem -Path "dist" -Force
