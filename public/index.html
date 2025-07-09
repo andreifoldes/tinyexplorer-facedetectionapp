@@ -33,6 +33,23 @@
             //
             if (typeof(require) === "undefined") {
                 window.isInElectronRenderer = false;
+                // Create IPC renderer stub for web mode
+                window.ipcRendererStub = {
+                    on: function(channel, callback) {
+                        if (channel === "apiDetails") {
+                            // Mock API details for web mode
+                            setTimeout(() => {
+                                callback({}, JSON.stringify({
+                                    port: 5000,
+                                    signingKey: "web-mode-key"
+                                }));
+                            }, 100);
+                        }
+                    },
+                    send: function(channel, data) {
+                        console.log("IPC stub send:", channel, data);
+                    }
+                };
             } else {
                 window.isInElectronRenderer = true;
                 // see https://electron.atom.io/docs/faq/ 

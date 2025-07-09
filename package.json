@@ -17,7 +17,10 @@
         "react-start": "craco start",
         "react-watch": "tsc -w -p tsconfig.json",
         "react-build": "craco build",
-        "python-build": "shx rm -rf pythondist && pyinstaller python/api.py --distpath pythondist --workpath build-py-temp --onefile && shx rm -rf build-py-temp && shx rm api.spec"
+        "python-build": "node scripts/bundle-python.js",
+        "python-build-minimal": "shx rm -rf pythondist && shx mkdir -p pythondist && shx cp -r python/ pythondist/ && pip install flask flask-cors graphene flask-graphql --target pythondist/python-deps",
+        "test:gui": "playwright test",
+        "test:gui:headed": "playwright test --headed"
     },
     "dependencies": {
         "@craco/craco": "^3.5.0",
@@ -45,10 +48,12 @@
         "uuid": "^3.3.2"
     },
     "devDependencies": {
+        "@playwright/test": "^1.53.2",
         "concurrently": "^4.1.0",
         "cross-env": "^5.2.0",
         "electron": "4.1.0",
         "electron-builder": "^20.39.0",
+        "playwright": "^1.53.2",
         "source-map-support": "^0.5.11",
         "tslint": "^5.9.1",
         "tslint-config-standard": "^7.0.0",
@@ -79,7 +84,8 @@
         "files": [
             "node_modules/**",
             "buildMain/**",
-            "pythondist/**"
+            "pythondist/**",
+            "build/**"
         ],
         "extraResources": [],
         "extraFiles": [],

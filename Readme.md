@@ -66,6 +66,9 @@ npm run build # must be run in the same shell you just conda activated
 
 To test the Python GraphQL server, in a conda activated terminal window run `npm run python-build`, cd into the newly generated `pythondist` folder, and run `api.exe --apiport 5000 --signingkey devkey` then browse to `http://127.0.0.1:5000/graphiql/` to access a GraphiQL view of the server. For a more detailed example, try `http://127.0.0.1:5000/graphiql/?query={calc(math:"1/2",signingkey:"devkey")}` which works great if you copy and paste into the browser but which is a complex enough URL that it will confuse chrome if you try to click directly on it.
 
+# Debugging frontend
+use Playwright MCP tools available to you
+
 # Notes
 
 The electron main process both spawns the Python child process and creates the window. The electron renderer process communicates with the python backend via GraphQL web service calls.

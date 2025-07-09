@@ -1,0 +1,10 @@
+flask
+flask-cors
+graphene
+flask-graphql
+ultralytics
+opencv-python
+pillow
+numpy
+torch
+torchvision
