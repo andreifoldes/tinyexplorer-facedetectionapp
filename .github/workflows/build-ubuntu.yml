@@ -38,7 +38,11 @@ jobs:
       run: NODE_OPTIONS="--openssl-legacy-provider" npm run react-build
 
     - name: Build Electron main process
-      run: npm run --silent main-build
+      run: |
+        npx tsc -p tsconfig.electronMain.json
+        npx electron-builder --linux --publish=never
+      env:
+        ELECTRON_BUILDER_CACHE: /tmp/electron-builder-cache
 
     - name: List build artifacts
       run: ls -la dist/ || echo "No dist directory"
