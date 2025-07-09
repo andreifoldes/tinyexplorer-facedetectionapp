@@ -3,6 +3,11 @@
     "version": "0.1.0",
     "private": true,
     "homepage": "./",
+    "author": {
+        "name": "Electron Python App",
+        "email": "noreply@example.com"
+    },
+    "description": "Electron application with Python Flask backend for face recognition using YOLO models",
     "main": "buildMain/index.js",
     "scripts": {
         "lint": "npm run main-lint && npm run react-lint",
