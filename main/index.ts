@@ -38,14 +38,31 @@ function createWindow() {
 
     // Handle folder browsing
     ipcMain.on("browse-folder", (event: any) => {
-        const result = dialog.showOpenDialog(win, {
+        dialog.showOpenDialog(win, {
             properties: ["openDirectory"]
+        }, (filePaths?: string[]) => {
+            if (filePaths && filePaths.length > 0) {
+                event.reply("selected-folder", filePaths[0]);
+            } else {
+                event.reply("selected-folder", null);
+            }
         });
-        
-        if (result && result.length > 0) {
-            event.reply("selected-folder", result[0]);
-        } else {
-            event.reply("selected-folder", null);
-        }
+    });
+
+    // Handle file browsing
+    ipcMain.on("browse-file", (event: any) => {
+        dialog.showOpenDialog(win, {
+            properties: ["openFile"],
+            filters: [
+                { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'] },
+                { name: 'All Files', extensions: ['*'] }
+            ]
+        }, (filePaths?: string[]) => {
+            if (filePaths && filePaths.length > 0) {
+                event.reply("selected-folder", filePaths[0]);
+            } else {
+                event.reply("selected-folder", null);
+            }
+        });
     });
 }
