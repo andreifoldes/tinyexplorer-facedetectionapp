@@ -43,23 +43,6 @@ const App = () => {
         });
     }, [apiPort]);
 
-    // Load available models on startup
-    useEffect(() => {
-        if (appGlobalClient) {
-            loadAvailableModels();
-        }
-    }, [appGlobalClient, loadAvailableModels]);
-
-    // Poll for progress updates when processing
-    useEffect(() => {
-        if (isProcessing && appGlobalClient) {
-            const interval = setInterval(() => {
-                checkProgress();
-            }, 1000);
-            return () => clearInterval(interval);
-        }
-    }, [isProcessing, appGlobalClient, checkProgress]);
-
     const loadAvailableModels = useCallback(async () => {
         if (!appGlobalClient) return;
         
@@ -117,6 +100,23 @@ const App = () => {
             console.error("Error checking progress:", error);
         }
     }, [appGlobalClient, apiSigningKey]);
+
+    // Load available models on startup
+    useEffect(() => {
+        if (appGlobalClient) {
+            loadAvailableModels();
+        }
+    }, [appGlobalClient, loadAvailableModels]);
+
+    // Poll for progress updates when processing
+    useEffect(() => {
+        if (isProcessing && appGlobalClient) {
+            const interval = setInterval(() => {
+                checkProgress();
+            }, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [isProcessing, appGlobalClient, checkProgress]);
 
     const handleBrowseFolder = () => {
         if (ipcRenderer) {
