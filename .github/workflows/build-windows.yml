@@ -56,6 +56,4 @@ jobs:
         name: windows-build
         path: |
           dist/*.exe
-          dist/*.msi
-          dist/*.appx
         if-no-files-found: warn
