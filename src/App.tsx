@@ -3,7 +3,7 @@ import { ApolloClient } from "apollo-client";
 import { HttpLink } from "apollo-link-http";
 import gql from "graphql-tag";
 import fetch from "isomorphic-fetch";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import "./App.css";
 
 const ipcRenderer = (window as any).isInElectronRenderer
@@ -25,7 +25,7 @@ const App = () => {
     const appGlobalClient = useMemo(() => {
         if (apiPort === 0) {
             if (ipcRenderer) {
-                ipcRenderer.on("apiDetails", ({}, argString:string) => {
+                ipcRenderer.on("apiDetails", (_event: any, argString:string) => {
                     const arg:{ port:number, signingKey:string } = JSON.parse(argString);
                     setApiPort(arg.port);
                     setApiSigningKey(arg.signingKey);
@@ -48,7 +48,7 @@ const App = () => {
         if (appGlobalClient) {
             loadAvailableModels();
         }
-    }, [appGlobalClient]);
+    }, [appGlobalClient, loadAvailableModels]);
 
     // Poll for progress updates when processing
     useEffect(() => {
@@ -58,9 +58,9 @@ const App = () => {
             }, 1000);
             return () => clearInterval(interval);
         }
-    }, [isProcessing, appGlobalClient]);
+    }, [isProcessing, appGlobalClient, checkProgress]);
 
-    const loadAvailableModels = async () => {
+    const loadAvailableModels = useCallback(async () => {
         if (!appGlobalClient) return;
         
         try {
@@ -75,9 +75,9 @@ const App = () => {
         } catch (error) {
             console.error("Error loading models:", error);
         }
-    };
+    }, [appGlobalClient, apiSigningKey]);
 
-    const checkProgress = async () => {
+    const checkProgress = useCallback(async () => {
         if (!appGlobalClient) return;
         
         try {
@@ -116,7 +116,7 @@ const App = () => {
         } catch (error) {
             console.error("Error checking progress:", error);
         }
-    };
+    }, [appGlobalClient, apiSigningKey]);
 
     const handleBrowseFolder = () => {
         if (ipcRenderer) {
@@ -129,30 +129,31 @@ const App = () => {
         }
     };
 
-    const handleLoadModel = async () => {
-        if (!appGlobalClient) return;
-        
-        try {
-            const { data } = await appGlobalClient.query({
-                query: gql`query loadModel($signingkey: String!, $modelPath: String!) {
-                    loadModel(signingkey: $signingkey, modelPath: $modelPath)
-                }`,
-                variables: { 
-                    signingkey: apiSigningKey,
-                    modelPath: selectedModel
-                }
-            });
-            
-            if (data.loadModel === "success") {
-                setProgressMessages(prev => [...prev, `Model ${selectedModel} loaded successfully`]);
-            } else {
-                setProgressMessages(prev => [...prev, `Failed to load model: ${data.loadModel}`]);
-            }
-        } catch (error) {
-            console.error("Error loading model:", error);
-            setProgressMessages(prev => [...prev, `Error loading model: ${error}`]);
-        }
-    };
+    // Unused function - commented out to fix linting error
+    // const handleLoadModel = async () => {
+    //     if (!appGlobalClient) return;
+    //     
+    //     try {
+    //         const { data } = await appGlobalClient.query({
+    //             query: gql`query loadModel($signingkey: String!, $modelPath: String!) {
+    //                 loadModel(signingkey: $signingkey, modelPath: $modelPath)
+    //             }`,
+    //             variables: { 
+    //                 signingkey: apiSigningKey,
+    //                 modelPath: selectedModel
+    //             }
+    //         });
+    //         
+    //         if (data.loadModel === "success") {
+    //             setProgressMessages(prev => [...prev, `Model ${selectedModel} loaded successfully`]);
+    //         } else {
+    //             setProgressMessages(prev => [...prev, `Failed to load model: ${data.loadModel}`]);
+    //         }
+    //     } catch (error) {
+    //         console.error("Error loading model:", error);
+    //         setProgressMessages(prev => [...prev, `Error loading model: ${error}`]);
+    //     }
+    // };
 
     const handleStartProcessing = async () => {
         if (!appGlobalClient || !selectedFolder) return;
