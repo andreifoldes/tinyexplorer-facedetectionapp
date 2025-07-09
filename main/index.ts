@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron"; // tslint:disable-line
+import { app, BrowserWindow, ipcMain, dialog } from "electron"; // tslint:disable-line
 import * as path from "path";
 import "./with-python";
 
@@ -19,11 +19,33 @@ app.on("ready", () => {
 });
 
 function createWindow() {
-    const win = new BrowserWindow();
-    win.webContents.openDevTools();
+    const win = new BrowserWindow({
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        }
+    });
+    
+    if (isDev) {
+        win.webContents.openDevTools();
+    }
+    
     if (isDev) {
         win.loadURL("http://localhost:3000/index.html");
     } else {
         win.loadURL(`file://${path.join(__dirname, "/../build/index.html")}`);
     }
+
+    // Handle folder browsing
+    ipcMain.on("browse-folder", (event: any) => {
+        const result = dialog.showOpenDialog(win, {
+            properties: ["openDirectory"]
+        });
+        
+        if (result && result.length > 0) {
+            event.reply("selected-folder", result[0]);
+        } else {
+            event.reply("selected-folder", null);
+        }
+    });
 }

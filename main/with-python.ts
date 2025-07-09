@@ -10,6 +10,7 @@ import uuid from "uuid";
 const PY_DIST_FOLDER = "pythondist";
 const PY_FOLDER = "python";
 const PY_MODULE = "api"; // without .py suffix
+const PY_LAUNCHER = "launch.py";
 
 const isDev = (process.env.NODE_ENV === "development");
 
@@ -27,30 +28,22 @@ const initializeApi = async () => {
     const key = isDev ? "devkey" : uuid.v4();
     apiDetails.signingKey = key;
     const srcPath = path.join(__dirname, "..", PY_FOLDER, PY_MODULE + ".py");
-    const exePath = (process.platform === "win32") ? path.join(__dirname, "..", PY_DIST_FOLDER, PY_MODULE + ".exe") : path.join(__dirname, PY_DIST_FOLDER, PY_MODULE);
+    const launcherPath = path.join(__dirname, "..", PY_FOLDER, PY_LAUNCHER);
+    const distLauncherPath = path.join(__dirname, "..", PY_DIST_FOLDER, "python", PY_LAUNCHER);
+    
     if (__dirname.indexOf("app.asar") > 0) {
         // dialog.showErrorBox("info", "packaged");
-        if (fs.existsSync(exePath)) {
-            pyProc = childProcess.execFile(exePath, ["--apiport", String(apiDetails.port), "--signingkey", apiDetails.signingKey], {}, (error, stdout, stderr) => {
-                if (error) {
-                    console.log(error);
-                    console.log(stderr);
-                }
-            });
-            if (pyProc === undefined) {
-                dialog.showErrorBox("Error", "pyProc is undefined");
-                dialog.showErrorBox("Error", exePath);
-            } else if (pyProc === null) {
-                dialog.showErrorBox("Error", "pyProc is null");
-                dialog.showErrorBox("Error", exePath);
-            }
+        if (fs.existsSync(distLauncherPath)) {
+            pyProc = crossSpawn("python", [distLauncherPath, "--apiport", String(apiDetails.port), "--signingkey", apiDetails.signingKey]);
         } else {
-            dialog.showErrorBox("Error", "Packaged python app not found");
+            dialog.showErrorBox("Error", "Packaged python launcher not found at: " + distLauncherPath);
         }
     } else {
         // dialog.showErrorBox("info", "unpackaged");
         if (fs.existsSync(srcPath)) {
             pyProc = crossSpawn("python", [srcPath, "--apiport", String(apiDetails.port), "--signingkey", apiDetails.signingKey]);
+        } else if (fs.existsSync(launcherPath)) {
+            pyProc = crossSpawn("python", [launcherPath, "--apiport", String(apiDetails.port), "--signingkey", apiDetails.signingKey]);
         } else {
             dialog.showErrorBox("Error", "Unpackaged python source not found");
         }

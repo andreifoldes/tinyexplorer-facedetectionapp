@@ -1,10 +1,13 @@
 from flask import Flask
 from flask_cors import CORS
-from graphene import ObjectType, String, Schema
+from graphene import ObjectType, String, Schema, Float, List, Boolean
 from flask_graphql import GraphQLView
 from calc import calc as real_calc
+from face_recognition import FaceRecognitionProcessor
 import argparse
 import os
+import threading
+import json
 
 #
 # Notes on setting up a flask GraphQL server
@@ -62,6 +65,86 @@ class Query(ObjectType):
             return "invalid signature"
         """echo any text"""
         return text
+    
+    # Face Recognition endpoints
+    load_model = String(description="Load YOLO model", signingkey=String(required=True), model_path=String(required=True))
+    def resolve_load_model(self, info, signingkey, model_path):
+        if signingkey != apiSigningKey:
+            return "invalid signature"
+        try:
+            success = face_processor.load_model(model_path)
+            return "success" if success else "failed"
+        except Exception as e:
+            return f"error: {str(e)}"
+    
+    get_models = String(description="Get available models", signingkey=String(required=True))
+    def resolve_get_models(self, info, signingkey):
+        if signingkey != apiSigningKey:
+            return "invalid signature"
+        try:
+            models = face_processor.get_available_models()
+            return json.dumps(models)
+        except Exception as e:
+            return f"error: {str(e)}"
+    
+    start_processing = String(description="Start face recognition processing", 
+                             signingkey=String(required=True), 
+                             folder_path=String(required=True),
+                             confidence=Float(required=True))
+    def resolve_start_processing(self, info, signingkey, folder_path, confidence):
+        if signingkey != apiSigningKey:
+            return "invalid signature"
+        try:
+            # Start processing in a separate thread
+            thread = threading.Thread(target=face_processor.process_folder, 
+                                    args=(folder_path, confidence))
+            thread.start()
+            return "processing started"
+        except Exception as e:
+            return f"error: {str(e)}"
+    
+    stop_processing = String(description="Stop processing", signingkey=String(required=True))
+    def resolve_stop_processing(self, info, signingkey):
+        if signingkey != apiSigningKey:
+            return "invalid signature"
+        try:
+            face_processor.stop_processing()
+            return "processing stopped"
+        except Exception as e:
+            return f"error: {str(e)}"
+    
+    get_results = String(description="Get processing results", signingkey=String(required=True))
+    def resolve_get_results(self, info, signingkey):
+        if signingkey != apiSigningKey:
+            return "invalid signature"
+        try:
+            results = face_processor.get_results()
+            return json.dumps(results)
+        except Exception as e:
+            return f"error: {str(e)}"
+    
+    get_status = String(description="Get processing status", signingkey=String(required=True))
+    def resolve_get_status(self, info, signingkey):
+        if signingkey != apiSigningKey:
+            return "invalid signature"
+        try:
+            status = {
+                "is_processing": face_processor.is_processing,
+                "results_count": len(face_processor.results)
+            }
+            return json.dumps(status)
+        except Exception as e:
+            return f"error: {str(e)}"
+    
+    get_progress = String(description="Get progress messages", signingkey=String(required=True))
+    def resolve_get_progress(self, info, signingkey):
+        if signingkey != apiSigningKey:
+            return "invalid signature"
+        try:
+            messages = progress_messages[-10:]  # Get last 10 messages
+            return json.dumps(messages)
+        except Exception as e:
+            return f"error: {str(e)}"
 
 view_func = GraphQLView.as_view("graphql", schema=Schema(query=Query), graphiql=True)
 
@@ -71,6 +154,14 @@ parser.add_argument("--signingkey", type=str, default="")
 args = parser.parse_args()
 
 apiSigningKey = args.signingkey
+
+# Initialize face recognition processor
+progress_messages = []
+def progress_callback(message):
+    progress_messages.append(message)
+    print(f"Progress: {message}")
+
+face_processor = FaceRecognitionProcessor(progress_callback)
 
 app = Flask(__name__)
 app.add_url_rule("/graphql/", view_func=view_func)
