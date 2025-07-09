@@ -129,6 +129,17 @@ const App = () => {
         }
     };
 
+    const handleBrowseFile = () => {
+        if (ipcRenderer) {
+            ipcRenderer.send("browse-file");
+            ipcRenderer.on("selected-folder", (event: any, filePath: string) => {
+                if (filePath) {
+                    setSelectedFolder(filePath);
+                }
+            });
+        }
+    };
+
     // Unused function - commented out to fix linting error
     // const handleLoadModel = async () => {
     //     if (!appGlobalClient) return;
@@ -223,7 +234,7 @@ const App = () => {
                             />
                         </div>
                         <div className="button-group">
-                            <button onClick={handleBrowseFolder} className="browse-btn">Browse File</button>
+                            <button onClick={handleBrowseFile} className="browse-btn">Browse File</button>
                             <button onClick={handleBrowseFolder} className="browse-btn">Browse Folder</button>
                         </div>
                     </div>
