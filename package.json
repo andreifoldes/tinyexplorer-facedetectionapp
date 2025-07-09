@@ -71,8 +71,8 @@
         "not op_mini all"
     ],
     "build": {
-        "appId": "com.example.electron-python",
-        "productName": "My Electron Python App",
+        "appId": "com.example.electron-python-face-recognition",
+        "productName": "Electron Python Face Recognition",
         "forceCodeSigning": false,
         "directories": {
             "buildResources": "build",
@@ -89,19 +89,55 @@
         ],
         "extraResources": [],
         "extraFiles": [],
+        "linux": {
+            "target": [
+                {
+                    "target": "AppImage",
+                    "arch": ["x64"]
+                },
+                {
+                    "target": "snap",
+                    "arch": ["x64"]
+                },
+                {
+                    "target": "deb",
+                    "arch": ["x64"]
+                },
+                {
+                    "target": "rpm",
+                    "arch": ["x64"]
+                }
+            ],
+            "category": "Development"
+        },
         "mac": {
-            "target": "dmg"
+            "target": [
+                {
+                    "target": "dmg",
+                    "arch": ["x64", "arm64"]
+                },
+                {
+                    "target": "zip",
+                    "arch": ["x64", "arm64"]
+                }
+            ],
+            "category": "public.app-category.developer-tools"
         },
-        "mas": {},
-        "dmg": {},
-        "pkg": {},
         "win": {
-            "target": "nsis"
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": ["x64", "ia32"]
+                },
+                {
+                    "target": "zip",
+                    "arch": ["x64", "ia32"]
+                }
+            ]
         },
-        "nsis": {},
-        "nsisWeb": {},
-        "portable": {},
-        "appx": {},
-        "squirrelWindows": {}
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true
+        }
     }
 }
