@@ -4,8 +4,8 @@
     "private": true,
     "homepage": "./",
     "author": {
-        "name": "Electron Python App",
-        "email": "noreply@example.com"
+        "name": "Tamas Foldes",
+        "email": "tamas.foldes@oii.ox.ac.uk"
     },
     "description": "Electron application with Python Flask backend for face recognition using YOLO models",
     "main": "buildMain/index.js",
