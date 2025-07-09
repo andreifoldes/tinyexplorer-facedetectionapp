@@ -1,7 +1,7 @@
 name: Build Multi-Platform
 
 on:
-  workflow_dispatch:
+  # workflow_dispatch:  # Disabled - use platform-specific builds instead
 
 jobs:
   build:
