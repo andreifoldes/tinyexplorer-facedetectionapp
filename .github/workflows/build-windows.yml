@@ -1,0 +1,61 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flask flask-cors graphene flask-graphql opencv-python-headless pillow numpy
+
+    - name: Install Node dependencies
+      run: npm ci
+
+    - name: Build Python bundle
+      run: npm run python-build
+
+    - name: Build React app
+      run: npm run react-build
+      env:
+        NODE_OPTIONS: "--openssl-legacy-provider"
+
+    - name: Build Electron main process
+      run: |
+        npx tsc -p tsconfig.electronMain.json
+        npx electron-builder --win --publish=never
+      env:
+        ELECTRON_BUILDER_CACHE: ${{ runner.temp }}\electron-builder-cache
+
+    - name: List build artifacts
+      run: dir dist\ || echo "No dist directory"
+      shell: cmd
+
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: |
+          dist/*.exe
+          dist/*.msi
+          dist/*.appx
+        if-no-files-found: warn
