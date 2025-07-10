@@ -57,19 +57,33 @@ class FaceRecognitionProcessor:
                 self.progress_callback(f"Error processing {image_path}: {str(e)}")
             return []
     
-    def process_folder(self, folder_path: str, confidence_threshold: float = 0.5):
-        """Process all images in a folder"""
+    def process_folder(self, folder_path: str, confidence_threshold: float = 0.5, model_name: str = "yolov8n.pt"):
+        """Process all images in a folder or single file"""
         self.is_processing = True
         self.results = []
+        
+        # Load the specified model
+        if self.progress_callback:
+            self.progress_callback(f"Loading YOLO model: {model_name}...")
+        if not self.load_model(model_name):
+            self.is_processing = False
+            return
         
         # Get all image files
         image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']
         image_files = []
         
-        for root, dirs, files in os.walk(folder_path):
-            for file in files:
-                if any(file.lower().endswith(ext) for ext in image_extensions):
-                    image_files.append(os.path.join(root, file))
+        # Check if the path is a file or directory
+        if os.path.isfile(folder_path):
+            # Single file processing
+            if any(folder_path.lower().endswith(ext) for ext in image_extensions):
+                image_files.append(folder_path)
+        else:
+            # Directory processing
+            for root, dirs, files in os.walk(folder_path):
+                for file in files:
+                    if any(file.lower().endswith(ext) for ext in image_extensions):
+                        image_files.append(os.path.join(root, file))
         
         if not image_files:
             if self.progress_callback:

@@ -35,19 +35,56 @@
                 window.isInElectronRenderer = false;
                 // Create IPC renderer stub for web mode
                 window.ipcRendererStub = {
+                    callbacks: {},
                     on: function(channel, callback) {
                         if (channel === "apiDetails") {
                             // Mock API details for web mode
                             setTimeout(() => {
                                 callback({}, JSON.stringify({
                                     port: 5000,
-                                    signingKey: "web-mode-key"
+                                    signingKey: "devkey"
                                 }));
                             }, 100);
+                        } else {
+                            this.callbacks[channel] = callback;
                         }
                     },
                     send: function(channel, data) {
                         console.log("IPC stub send:", channel, data);
+                        
+                        if (channel === "browse-file") {
+                            // Create file input for file selection
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.onchange = (e) => {
+                                if (e.target.files.length > 0) {
+                                    const file = e.target.files[0];
+                                    const filePath = file.name; // In real scenario this would be full path
+                                    if (this.callbacks['selected-folder']) {
+                                        this.callbacks['selected-folder']({}, filePath);
+                                    }
+                                }
+                            };
+                            input.click();
+                        } else if (channel === "browse-folder") {
+                            // Create file input with webkitdirectory for folder selection
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.webkitdirectory = true;
+                            input.onchange = (e) => {
+                                if (e.target.files.length > 0) {
+                                    // Get the common path (folder name)
+                                    const firstFile = e.target.files[0];
+                                    const pathParts = firstFile.webkitRelativePath.split('/');
+                                    const folderName = pathParts[0];
+                                    if (this.callbacks['selected-folder']) {
+                                        this.callbacks['selected-folder']({}, folderName);
+                                    }
+                                }
+                            };
+                            input.click();
+                        }
                     }
                 };
             } else {

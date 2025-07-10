@@ -42,9 +42,9 @@ function createWindow() {
             properties: ["openDirectory"]
         }, (filePaths?: string[]) => {
             if (filePaths && filePaths.length > 0) {
-                event.reply("selected-folder", filePaths[0]);
+                event.sender.send("selected-folder", filePaths[0]);
             } else {
-                event.reply("selected-folder", null);
+                event.sender.send("selected-folder", null);
             }
         });
     });
@@ -59,9 +59,9 @@ function createWindow() {
             ]
         }, (filePaths?: string[]) => {
             if (filePaths && filePaths.length > 0) {
-                event.reply("selected-folder", filePaths[0]);
+                event.sender.send("selected-folder", filePaths[0]);
             } else {
-                event.reply("selected-folder", null);
+                event.sender.send("selected-folder", null);
             }
         });
     });

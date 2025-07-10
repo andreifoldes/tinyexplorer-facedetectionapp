@@ -1,7 +1,6 @@
-from flask import Flask
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from graphene import ObjectType, String, Schema, Float, List, Boolean
-from flask_graphql import GraphQLView
 from calc import calc as real_calc
 from face_recognition import FaceRecognitionProcessor
 import argparse
@@ -90,14 +89,15 @@ class Query(ObjectType):
     start_processing = String(description="Start face recognition processing", 
                              signingkey=String(required=True), 
                              folder_path=String(required=True),
-                             confidence=Float(required=True))
-    def resolve_start_processing(self, info, signingkey, folder_path, confidence):
+                             confidence=Float(required=True),
+                             model=String(required=True))
+    def resolve_start_processing(self, info, signingkey, folder_path, confidence, model):
         if signingkey != apiSigningKey:
             return "invalid signature"
         try:
             # Start processing in a separate thread
             thread = threading.Thread(target=face_processor.process_folder, 
-                                    args=(folder_path, confidence))
+                                    args=(folder_path, confidence, model))
             thread.start()
             return "processing started"
         except Exception as e:
@@ -146,8 +146,6 @@ class Query(ObjectType):
         except Exception as e:
             return f"error: {str(e)}"
 
-view_func = GraphQLView.as_view("graphql", schema=Schema(query=Query), graphiql=True)
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--apiport", type=int, default=5000)
 parser.add_argument("--signingkey", type=str, default="")
@@ -164,9 +162,83 @@ def progress_callback(message):
 face_processor = FaceRecognitionProcessor(progress_callback)
 
 app = Flask(__name__)
-app.add_url_rule("/graphql/", view_func=view_func)
-app.add_url_rule("/graphiql/", view_func=view_func) # for compatibility with other samples
 CORS(app) # Allows all domains to access the flask server via CORS
+
+schema = Schema(query=Query)
+
+@app.route('/health/', methods=['GET'])
+def health():
+    return jsonify({'status': 'ok', 'message': 'Python server is running'})
+
+@app.route('/', methods=['GET'])
+def root():
+    return jsonify({'message': 'Face Recognition API Server'})
+
+@app.route('/graphql/', methods=['POST', 'GET', 'OPTIONS'])
+def graphql():
+    print(f"GraphQL request: {request.method} from {request.remote_addr}")
+    
+    if request.method == 'OPTIONS':
+        # Handle CORS preflight request
+        print("Handling CORS preflight request")
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+        return response
+    
+    if request.method == 'POST':
+        data = request.get_json()
+        query = data.get('query')
+        variables = data.get('variables')
+        
+        try:
+            result = schema.execute(query, variables=variables)
+            return jsonify({
+                'data': result.data,
+                'errors': [str(error) for error in result.errors] if result.errors else None
+            })
+        except Exception as e:
+            return jsonify({'errors': [str(e)]})
+    
+    elif request.method == 'GET':
+        query = request.args.get('query')
+        variables = request.args.get('variables')
+        
+        if variables:
+            try:
+                variables = json.loads(variables)
+            except:
+                variables = None
+        
+        try:
+            result = schema.execute(query, variables=variables)
+            return jsonify({
+                'data': result.data,
+                'errors': [str(error) for error in result.errors] if result.errors else None
+            })
+        except Exception as e:
+            return jsonify({'errors': [str(e)]})
+    
+    return jsonify({'error': 'Method not allowed'})
+
+@app.route('/graphiql/', methods=['GET'])
+def graphiql():
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>GraphiQL</title>
+        <style>
+            body { margin: 0; font-family: Arial, sans-serif; }
+            #graphiql { height: 100vh; }
+        </style>
+    </head>
+    <body>
+        <div id="graphiql">GraphiQL interface would be here</div>
+    </body>
+    </html>
+    '''
 
 if __name__ == "__main__":
     app.run(port=args.apiport)

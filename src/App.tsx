@@ -30,6 +30,10 @@ const App = () => {
                     setApiPort(arg.port);
                     setApiSigningKey(arg.signingKey);
                 });
+                ipcRenderer.on("apiDetailsError", (_event: any, errorMessage:string) => {
+                    console.error("Python server error:", errorMessage);
+                    setProgressMessages(prev => [...prev, `Python server error: ${errorMessage}`]);
+                });
                 ipcRenderer.send("getApiDetails");
             }
             return null;
@@ -44,7 +48,7 @@ const App = () => {
     }, [apiPort]);
 
     const loadAvailableModels = useCallback(async () => {
-        if (!appGlobalClient) return;
+        if (!appGlobalClient || !apiSigningKey) return;
         
         try {
             const { data } = await appGlobalClient.query({
@@ -53,15 +57,28 @@ const App = () => {
                 }`,
                 variables: { signingkey: apiSigningKey }
             });
-            const models = JSON.parse(data.getModels);
-            setAvailableModels(models);
+            
+            // Check if response is valid JSON
+            if (data.getModels && data.getModels !== "invalid signature") {
+                try {
+                    const models = JSON.parse(data.getModels);
+                    setAvailableModels(models);
+                } catch (parseError) {
+                    console.error("Error parsing models JSON:", parseError);
+                    setAvailableModels(["yolov8n.pt"]); // Fallback to default
+                }
+            } else {
+                console.error("Invalid signature or no models data received");
+                setAvailableModels(["yolov8n.pt"]); // Fallback to default
+            }
         } catch (error) {
             console.error("Error loading models:", error);
+            setAvailableModels(["yolov8n.pt"]); // Fallback to default
         }
     }, [appGlobalClient, apiSigningKey]);
 
     const checkProgress = useCallback(async () => {
-        if (!appGlobalClient) return;
+        if (!appGlobalClient || !apiSigningKey) return;
         
         try {
             const [statusResponse, progressResponse] = await Promise.all([
@@ -79,8 +96,25 @@ const App = () => {
                 })
             ]);
 
-            const status = JSON.parse(statusResponse.data.getStatus);
-            const messages = JSON.parse(progressResponse.data.getProgress);
+            // Parse status response
+            let status = { is_processing: false, results_count: 0 };
+            let messages = [];
+            
+            try {
+                if (statusResponse.data.getStatus && statusResponse.data.getStatus !== "invalid signature") {
+                    status = JSON.parse(statusResponse.data.getStatus);
+                }
+            } catch (parseError) {
+                console.error("Error parsing status JSON:", parseError);
+            }
+            
+            try {
+                if (progressResponse.data.getProgress && progressResponse.data.getProgress !== "invalid signature") {
+                    messages = JSON.parse(progressResponse.data.getProgress);
+                }
+            } catch (parseError) {
+                console.error("Error parsing progress JSON:", parseError);
+            }
             
             setIsProcessing(status.is_processing);
             setProgressMessages(messages);
@@ -94,7 +128,14 @@ const App = () => {
                     }`,
                     variables: { signingkey: apiSigningKey }
                 });
-                setResults(JSON.parse(resultsResponse.data.getResults));
+                
+                try {
+                    if (resultsResponse.data.getResults && resultsResponse.data.getResults !== "invalid signature") {
+                        setResults(JSON.parse(resultsResponse.data.getResults));
+                    }
+                } catch (parseError) {
+                    console.error("Error parsing results JSON:", parseError);
+                }
             }
         } catch (error) {
             console.error("Error checking progress:", error);
@@ -103,20 +144,20 @@ const App = () => {
 
     // Load available models on startup
     useEffect(() => {
-        if (appGlobalClient) {
+        if (appGlobalClient && apiSigningKey) {
             loadAvailableModels();
         }
-    }, [appGlobalClient, loadAvailableModels]);
+    }, [appGlobalClient, apiSigningKey, loadAvailableModels]);
 
     // Poll for progress updates when processing
     useEffect(() => {
-        if (isProcessing && appGlobalClient) {
+        if (isProcessing && appGlobalClient && apiSigningKey) {
             const interval = setInterval(() => {
                 checkProgress();
             }, 1000);
             return () => clearInterval(interval);
         }
-    }, [isProcessing, appGlobalClient, checkProgress]);
+    }, [isProcessing, appGlobalClient, apiSigningKey, checkProgress]);
 
     const handleBrowseFolder = () => {
         if (ipcRenderer) {
@@ -167,7 +208,7 @@ const App = () => {
     // };
 
     const handleStartProcessing = async () => {
-        if (!appGlobalClient || !selectedFolder) return;
+        if (!appGlobalClient || !selectedFolder || !apiSigningKey) return;
         
         setIsProcessing(true);
         setResults([]);
@@ -175,13 +216,14 @@ const App = () => {
         
         try {
             const { data } = await appGlobalClient.query({
-                query: gql`query startProcessing($signingkey: String!, $folderPath: String!, $confidence: Float!) {
-                    startProcessing(signingkey: $signingkey, folderPath: $folderPath, confidence: $confidence)
+                query: gql`query startProcessing($signingkey: String!, $folderPath: String!, $confidence: Float!, $model: String!) {
+                    startProcessing(signingkey: $signingkey, folderPath: $folderPath, confidence: $confidence, model: $model)
                 }`,
                 variables: {
                     signingkey: apiSigningKey,
                     folderPath: selectedFolder,
-                    confidence: confidenceThreshold
+                    confidence: confidenceThreshold,
+                    model: selectedModel
                 }
             });
             
@@ -197,7 +239,7 @@ const App = () => {
     };
 
     const handleStopProcessing = async () => {
-        if (!appGlobalClient) return;
+        if (!appGlobalClient || !apiSigningKey) return;
         
         try {
             await appGlobalClient.query({
