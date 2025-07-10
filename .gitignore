@@ -124,7 +124,10 @@ Thumbs.db
 # Test results
 test-results/
 playwright-report/
+tests/
 
 # Keep important files
 !README.md
 !CLAUDE.md
+
+*.pt
