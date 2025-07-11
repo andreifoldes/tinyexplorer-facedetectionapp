@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from graphene import ObjectType, String, Schema, Float, List, Boolean
 from calc import calc as real_calc
@@ -7,6 +7,8 @@ import argparse
 import os
 import threading
 import json
+import queue
+import time
 
 #
 # Notes on setting up a flask GraphQL server
@@ -86,18 +88,21 @@ class Query(ObjectType):
         except Exception as e:
             return f"error: {str(e)}"
     
-    start_processing = String(description="Start face recognition processing", 
+    start_processing = String(description="Start face recognition processing",
                              signingkey=String(required=True), 
                              folder_path=String(required=True),
                              confidence=Float(required=True),
-                             model=String(required=True))
-    def resolve_start_processing(self, info, signingkey, folder_path, confidence, model):
+                             model=String(required=True),
+                             save_results=Boolean(),
+                             results_folder=String())
+    def resolve_start_processing(self, info, signingkey, folder_path, confidence, model, save_results=False, results_folder=None):
         if signingkey != apiSigningKey:
             return "invalid signature"
         try:
             # Start processing in a separate thread
+            # The processing_started event will be sent from the process_folder method
             thread = threading.Thread(target=face_processor.process_folder, 
-                                    args=(folder_path, confidence, model))
+                                    args=(folder_path, confidence, model, save_results, results_folder))
             thread.start()
             return "processing started"
         except Exception as e:
@@ -145,6 +150,66 @@ class Query(ObjectType):
             return json.dumps(messages)
         except Exception as e:
             return f"error: {str(e)}"
+    
+    get_logs = String(description="Get Python logs", signingkey=String(required=True))
+    def resolve_get_logs(self, info, signingkey):
+        if signingkey != apiSigningKey:
+            return "invalid signature"
+        try:
+            logs = python_logs[-20:]  # Get last 20 log messages
+            return json.dumps(logs)
+        except Exception as e:
+            return f"error: {str(e)}"
+    
+    export_csv = String(description="Export results to CSV", 
+                       signingkey=String(required=True),
+                       output_path=String(required=True))
+    def resolve_export_csv(self, info, signingkey, output_path):
+        if signingkey != apiSigningKey:
+            return "invalid signature"
+        try:
+            results = face_processor.get_results()
+            success = face_processor.export_results_to_csv(results, output_path)
+            return "success" if success else "failed"
+        except Exception as e:
+            return f"error: {str(e)}"
+    
+    process_video = String(description="Process single video file",
+                          signingkey=String(required=True),
+                          video_path=String(required=True),
+                          confidence=Float(required=True),
+                          result_folder=String())
+    def resolve_process_video(self, info, signingkey, video_path, confidence, result_folder=None):
+        if signingkey != apiSigningKey:
+            return "invalid signature"
+        try:
+            # Start video processing in a separate thread
+            if not result_folder:
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                result_folder = os.path.join(os.getcwd(), f"video_processing_{timestamp}")
+                os.makedirs(result_folder, exist_ok=True)
+            
+            thread = threading.Thread(target=face_processor.process_video,
+                                    args=(video_path, confidence, result_folder))
+            thread.start()
+            return "video processing started"
+        except Exception as e:
+            return f"error: {str(e)}"
+    
+    get_model_info = String(description="Get current model information", signingkey=String(required=True))
+    def resolve_get_model_info(self, info, signingkey):
+        if signingkey != apiSigningKey:
+            return "invalid signature"
+        try:
+            info = {
+                "current_model": face_processor.current_model_path,
+                "model_type": face_processor.model_type,
+                "retinaface_available": "RetinaFace" in face_processor.get_available_models()
+            }
+            return json.dumps(info)
+        except Exception as e:
+            return f"error: {str(e)}"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--apiport", type=int, default=5000)
@@ -155,11 +220,81 @@ apiSigningKey = args.signingkey
 
 # Initialize face recognition processor
 progress_messages = []
+python_logs = []
+
+# Event system for real-time updates
+event_queues = []  # List of queues for SSE clients
+
+def add_event_queue():
+    """Add a new event queue for SSE client"""
+    q = queue.Queue()
+    event_queues.append(q)
+    return q
+
+def remove_event_queue(q):
+    """Remove event queue when client disconnects"""
+    if q in event_queues:
+        event_queues.remove(q)
+
+def broadcast_event(event_type, data):
+    """Broadcast an event to all connected SSE clients"""
+    event_data = {
+        'type': event_type,
+        'data': data,
+        'timestamp': time.time()
+    }
+    
+    print(f"Broadcasting event '{event_type}' to {len(event_queues)} SSE clients")
+    
+    # Remove disconnected queues
+    queues_to_remove = []
+    for q in event_queues:
+        try:
+            q.put(event_data, timeout=0.1)
+            print(f"Successfully sent event to SSE client")
+        except queue.Full:
+            print(f"SSE client queue full, marking for removal")
+            queues_to_remove.append(q)
+    
+    for q in queues_to_remove:
+        event_queues.remove(q)
+        print(f"Removed disconnected SSE client")
+
 def progress_callback(message):
     progress_messages.append(message)
+    python_logs.append(f"Progress: {message}")
     print(f"Progress: {message}")
+    
+    # Broadcast progress event
+    broadcast_event('progress', message)
 
-face_processor = FaceRecognitionProcessor(progress_callback)
+def completion_callback(data):
+    """Called when processing completes"""
+    print(f"Processing completed: {data}")
+    print(f"Number of SSE clients connected: {len(event_queues)}")
+    
+    # Broadcast completion event
+    broadcast_event('completion', data)
+    print(f"Broadcasted completion event: {data}")
+
+# Capture stdout for logging
+import sys
+class StdoutCapture:
+    def __init__(self):
+        self.original_stdout = sys.stdout
+        
+    def write(self, text):
+        if text.strip():  # Only log non-empty lines
+            python_logs.append(f"Python stdout: {text.strip()}")
+        self.original_stdout.write(text)
+        
+    def flush(self):
+        self.original_stdout.flush()
+
+# Install stdout capture
+sys.stdout = StdoutCapture()
+
+face_processor = FaceRecognitionProcessor(progress_callback, completion_callback)
 
 app = Flask(__name__)
 CORS(app) # Allows all domains to access the flask server via CORS
@@ -173,6 +308,39 @@ def health():
 @app.route('/', methods=['GET'])
 def root():
     return jsonify({'message': 'Face Recognition API Server'})
+
+@app.route('/events/<signing_key>/', methods=['GET'])
+def events_stream(signing_key):
+    """Server-Sent Events endpoint for real-time updates"""
+    if signing_key != apiSigningKey:
+        return jsonify({'error': 'invalid signature'}), 403
+    
+    def event_stream():
+        # Add this client to the event queues
+        client_queue = add_event_queue()
+        
+        try:
+            # Send initial connection event
+            yield f"data: {json.dumps({'type': 'connected', 'data': 'SSE connection established'})}\n\n"
+            
+            while True:
+                try:
+                    # Wait for events with timeout
+                    event = client_queue.get(timeout=30)  # 30 second timeout for heartbeat
+                    yield f"data: {json.dumps(event)}\n\n"
+                except queue.Empty:
+                    # Send heartbeat to keep connection alive
+                    yield f"data: {json.dumps({'type': 'heartbeat', 'data': 'ping'})}\n\n"
+                except GeneratorExit:
+                    break
+        finally:
+            # Clean up when client disconnects
+            remove_event_queue(client_queue)
+    
+    return Response(event_stream(), mimetype='text/event-stream',
+                   headers={'Cache-Control': 'no-cache',
+                           'Connection': 'keep-alive',
+                           'Access-Control-Allow-Origin': '*'})
 
 @app.route('/graphql/', methods=['POST', 'GET', 'OPTIONS'])
 def graphql():

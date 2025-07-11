@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron"; // tslint:disable-line
+import { app, BrowserWindow, ipcMain, dialog, shell } from "electron"; // tslint:disable-line
 import * as path from "path";
 import "./with-python";
 
@@ -55,6 +55,7 @@ function createWindow() {
             properties: ["openFile"],
             filters: [
                 { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'] },
+                { name: 'Videos', extensions: ['mp4', 'avi', 'mov'] },
                 { name: 'All Files', extensions: ['*'] }
             ]
         }, (filePaths?: string[]) => {
@@ -64,5 +65,36 @@ function createWindow() {
                 event.sender.send("selected-folder", null);
             }
         });
+    });
+
+    // Handle CSV file saving
+    ipcMain.on("save-csv", (event: any) => {
+        dialog.showSaveDialog(win, {
+            filters: [
+                { name: 'CSV Files', extensions: ['csv'] },
+                { name: 'All Files', extensions: ['*'] }
+            ],
+            defaultPath: 'face_detection_results.csv'
+        }, (filePath?: string) => {
+            if (filePath) {
+                event.sender.send("selected-save-path", filePath);
+            } else {
+                event.sender.send("selected-save-path", null);
+            }
+        });
+    });
+
+    // Handle opening folder in system file manager
+    ipcMain.on("open-folder", async (event: any, folderPath: string) => {
+        try {
+            const result = shell.openItem(folderPath);
+            if (result) {
+                console.log("Successfully opened folder:", folderPath);
+            } else {
+                console.error("Failed to open folder:", folderPath);
+            }
+        } catch (error) {
+            console.error("Error opening folder:", error);
+        }
     });
 }

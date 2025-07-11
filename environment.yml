@@ -31,3 +31,10 @@ dependencies:
     - graphene
     - pyinstaller
     - pypiwin32
+    - retina-face
+    - tensorflow
+    - tf-keras
+    - opencv-python
+    - ultralytics
+    - torch
+    - torchvision
