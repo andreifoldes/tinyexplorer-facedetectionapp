@@ -249,11 +249,15 @@ class SubprocessAPI:
                 # Handle command
                 response = self.handle_command(command)
                 
-                # Send response
-                self.send_response({
+                # Send response with command ID if present
+                response_data = {
                     'type': 'response',
                     'response': response
-                })
+                }
+                if 'id' in command:
+                    response_data['id'] = command['id']
+                
+                self.send_response(response_data)
                 
             except KeyboardInterrupt:
                 self.logger.info("Received interrupt signal")

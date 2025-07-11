@@ -183,7 +183,7 @@ const App = () => {
             ipcRenderer.removeListener("python-event", handlePythonEvent);
             ipcRenderer.removeListener("pythonStatus", handlePythonStatus);
         };
-    }, [availableModels.length, checkPythonStatus, loadAvailableModels, handleCompletionEvent]);
+    }, [availableModels.length, loadAvailableModels, handleCompletionEvent, checkPythonStatus]);
 
     const handleSelectResultsFolder = () => {
         console.log("Prompting user to select results folder");
