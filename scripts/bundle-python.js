@@ -28,10 +28,6 @@ fs.mkdirSync(depsDir, { recursive: true });
 
 // Install only the essential packages to reduce size
 const essentialPackages = [
-    'flask',
-    'flask-cors', 
-    'graphene',
-    'flask-graphql',
     'opencv-python-headless',  // Smaller than opencv-python
     'pillow',
     'numpy'
@@ -50,7 +46,7 @@ essentialPackages.forEach(pkg => {
 // Install dependencies for essential packages
 try {
     console.log('Installing package dependencies...');
-    execSync(`pip install --target ${depsDir} --no-warn-script-location werkzeug jinja2 itsdangerous click blinker graphql-core graphql-relay python-dateutil typing-extensions`, { stdio: 'inherit' });
+    execSync(`pip install --target ${depsDir} --no-warn-script-location python-dateutil typing-extensions`, { stdio: 'inherit' });
 } catch (error) {
     console.warn('Some dependencies failed to install, continuing...');
 }

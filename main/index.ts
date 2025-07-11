@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from "electron"; // tslint:disable-line
 import * as path from "path";
-import "./with-python";
+import "./with-python-subprocess";
 
 const isDev = (process.env.NODE_ENV === "development");
 
