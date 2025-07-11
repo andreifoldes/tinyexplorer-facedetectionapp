@@ -125,6 +125,15 @@ const handlePythonMessage = (message: any) => {
         pythonReady = true;
         console.log("Python subprocess is ready");
         
+        // Notify all renderer processes that Python is ready
+        const allWindows = Electron.BrowserWindow.getAllWindows();
+        allWindows.forEach(window => {
+            window.webContents.send('pythonStatus', {
+                ready: pythonReady,
+                pid: pyProc ? pyProc.pid : undefined
+            });
+        });
+        
         // Process queued commands
         while (commandQueue.length > 0) {
             const { command, callback } = commandQueue.shift()!;
@@ -132,9 +141,16 @@ const handlePythonMessage = (message: any) => {
         }
     } else if (message.type === 'response') {
         // Handle command response
-        // For now, we'll emit this to the renderer process
-        // In a more sophisticated implementation, we'd track command IDs
         console.log("Python command response:", message.response);
+        
+        // If there's a command ID, call the specific callback
+        if (message.id && pendingCommands.has(message.id)) {
+            const callback = pendingCommands.get(message.id);
+            pendingCommands.delete(message.id);
+            if (callback) {
+                callback(null, message.response);
+            }
+        }
     } else if (message.type === 'event') {
         // Handle Python events (progress, completion, etc.)
         console.log("Python event:", message.event);
@@ -148,6 +164,10 @@ const handlePythonMessage = (message: any) => {
     }
 };
 
+// Track pending commands with unique IDs
+let commandCounter = 0;
+const pendingCommands = new Map<number, Function>();
+
 const sendCommandToPython = (command: any, callback?: Function) => {
     if (!pyProc || !pythonReady) {
         console.log("Python not ready, queuing command:", command);
@@ -158,16 +178,19 @@ const sendCommandToPython = (command: any, callback?: Function) => {
     }
     
     try {
-        const commandJson = JSON.stringify(command) + '\n';
+        // Add unique ID to track responses
+        const commandId = ++commandCounter;
+        const commandWithId = { ...command, id: commandId };
+        
+        const commandJson = JSON.stringify(commandWithId) + '\n';
         if (pyProc.stdin) {
             pyProc.stdin.write(commandJson);
         }
-        console.log("Sent command to Python:", command);
+        console.log("Sent command to Python:", commandWithId);
         
         if (callback) {
-            // For now, we'll call the callback immediately
-            // In a more sophisticated implementation, we'd track command IDs and responses
-            callback(null, { status: 'sent' });
+            // Store callback to be called when response arrives
+            pendingCommands.set(commandId, callback);
         }
     } catch (error) {
         console.error("Error sending command to Python:", error);

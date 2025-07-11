@@ -59,7 +59,7 @@
                         delete this.callbacks[channel];
                     },
                     send: function(channel, data) {
-                        console.log("IPC stub send:", channel, data);
+                        console.log("IPC stub send:", channel, data === undefined ? "" : data);
                         
                         if (channel === "python-command") {
                             // Mock Python command responses for web mode
