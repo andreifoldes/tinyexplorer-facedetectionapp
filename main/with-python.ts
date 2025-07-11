@@ -54,10 +54,10 @@ const initializeApi = async () => {
         // dialog.showErrorBox("info", "unpackaged");
         if (fs.existsSync(srcPath)) {
             console.log("Starting Python server from src:", srcPath);
-            pyProc = crossSpawn("python", [srcPath, "--apiport", String(apiDetails.port), "--signingkey", apiDetails.signingKey]);
+            pyProc = crossSpawn("/home/tamas.foldes/miniconda3/envs/electron-python-sample/bin/python", [srcPath, "--apiport", String(apiDetails.port), "--signingkey", apiDetails.signingKey]);
         } else if (fs.existsSync(launcherPath)) {
             console.log("Starting Python server from launcher:", launcherPath);
-            pyProc = crossSpawn("python", [launcherPath, "--apiport", String(apiDetails.port), "--signingkey", apiDetails.signingKey]);
+            pyProc = crossSpawn("/home/tamas.foldes/miniconda3/envs/electron-python-sample/bin/python", [launcherPath, "--apiport", String(apiDetails.port), "--signingkey", apiDetails.signingKey]);
         } else {
             console.log("No python source found. Checking files...");
             console.log("srcPath exists:", fs.existsSync(srcPath));

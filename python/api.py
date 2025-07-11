@@ -306,7 +306,7 @@ face_processor = FaceDetectionProcessor(progress_callback, completion_callback)
 
 app = Flask(__name__)
 CORS(app) # Allows all domains to access the flask server via CORS
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', engineio_logger=True, socketio_logger=True)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', engineio_logger=False, socketio_logger=False, transports=['websocket'])
 
 schema = Schema(query=Query)
 
