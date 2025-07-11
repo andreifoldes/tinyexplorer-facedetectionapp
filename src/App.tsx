@@ -4,6 +4,7 @@ import { HttpLink } from "apollo-link-http";
 import gql from "graphql-tag";
 import fetch from "isomorphic-fetch";
 import React, { useMemo, useState, useEffect, useCallback } from "react";
+import * as io from "socket.io-client";
 import "./App.css";
 
 const ipcRenderer = (window as any).isInElectronRenderer
@@ -28,6 +29,8 @@ const App = () => {
     const [isVideoFile, setIsVideoFile] = useState(false);
     const [eventSource, setEventSource] = useState<EventSource | null>(null);
     const [sseConnected, setSseConnected] = useState(false);
+    const [socket, setSocket] = useState<SocketIOClient.Socket | null>(null);
+    const [wsConnected, setWsConnected] = useState(false);
 
     const appGlobalClient = useMemo(() => {
         if (apiPort === 0) {
@@ -288,6 +291,97 @@ const App = () => {
         }
     }, [appGlobalClient, apiSigningKey, checkProgress, startingTimeoutId]);
 
+    const setupWebSocket = useCallback(() => {
+        if (!apiPort || !apiSigningKey) return;
+        
+        // Close existing connection
+        if (socket) {
+            socket.disconnect();
+        }
+        
+        console.log("🔄 Setting up WebSocket connection");
+        const newSocket = io.connect(`http://127.0.0.1:${apiPort}`, {
+            transports: ['websocket'],
+            forceNew: true
+        });
+        
+        newSocket.on('connect', () => {
+            console.log("✅ WebSocket connection established");
+            setWsConnected(true);
+        });
+        
+        newSocket.on('disconnect', () => {
+            console.log("❌ WebSocket disconnected");
+            setWsConnected(false);
+        });
+        
+        newSocket.on('connected', (data: any) => {
+            console.log("🔗 WebSocket connection confirmed:", data);
+        });
+        
+        newSocket.on('face_detection_event', (data: any) => {
+            console.log("📡 WebSocket Event received:", data);
+            
+            switch (data.type) {
+                case 'progress':
+                    // Filter out DEBUG messages from the GUI
+                    if (!data.data.includes('ℹ️ DEBUG:')) {
+                        setProgressMessages(prev => [...prev, data.data]);
+                        setHasProgressMessages(true);
+                    }
+                    break;
+                    
+                case 'completion':
+                    handleCompletionEvent(data.data);
+                    break;
+                    
+                default:
+                    console.log("🔍 Unknown WebSocket event type:", data.type);
+            }
+        });
+        
+        newSocket.on('processing_started', (data: any) => {
+            console.log("🚀 Processing started via WebSocket:", data);
+            setIsProcessing(true);
+            setIsStarting(false);
+            setProgress(0);
+            if (startingTimeoutId) {
+                clearTimeout(startingTimeoutId);
+                setStartingTimeoutId(null);
+            }
+        });
+        
+        newSocket.on('processing_stopped', (data: any) => {
+            console.log("🛑 Processing stopped via WebSocket:", data);
+            setIsProcessing(false);
+            setIsStarting(false);
+            if (startingTimeoutId) {
+                clearTimeout(startingTimeoutId);
+                setStartingTimeoutId(null);
+            }
+        });
+        
+        newSocket.on('status_update', (data: any) => {
+            console.log("📊 Status update via WebSocket:", data);
+            setIsProcessing(data.is_processing);
+        });
+        
+        newSocket.on('error', (data: any) => {
+            console.error("❌ WebSocket error:", data);
+            setProgressMessages(prev => [...prev, `❌ Error: ${data.message}`]);
+            setHasProgressMessages(true);
+            setIsProcessing(false);
+            setIsStarting(false);
+            if (startingTimeoutId) {
+                clearTimeout(startingTimeoutId);
+                setStartingTimeoutId(null);
+            }
+        });
+        
+        setSocket(newSocket);
+        return newSocket;
+    }, [apiPort, apiSigningKey, socket, handleCompletionEvent, startingTimeoutId]);
+
     const setupEventSource = useCallback(() => {
         if (!apiPort || !apiSigningKey) return;
         
@@ -348,20 +442,24 @@ const App = () => {
         return newEventSource;
     }, [apiPort, apiSigningKey, eventSource, handleCompletionEvent]);
     
-    // Setup SSE connection when API details are available
+    // Setup WebSocket connection when API details are available
     useEffect(() => {
-        if (apiPort && apiSigningKey && !eventSource) {
-            setupEventSource();
+        if (apiPort && apiSigningKey && !socket) {
+            setupWebSocket();
         }
         
         // Cleanup on unmount
         return () => {
+            if (socket) {
+                socket.disconnect();
+                setWsConnected(false);
+            }
             if (eventSource) {
                 eventSource.close();
                 setSseConnected(false);
             }
         };
-    }, [apiPort, apiSigningKey, setupEventSource, eventSource]);
+    }, [apiPort, apiSigningKey, setupWebSocket, socket]);
 
     const handleSelectResultsFolder = () => {
         console.log("📁 Prompting user to select results folder");
@@ -479,7 +577,7 @@ const App = () => {
     // };
 
     const handleStartProcessing = async () => {
-        console.log("🚀 User clicked 'Start Recognition' button");
+        console.log("🚀 User clicked 'Start Detection' button");
         console.log("📊 Processing parameters:", {
             folder: selectedFolder,
             model: selectedModel,
@@ -502,22 +600,22 @@ const App = () => {
         setProgressMessages([]); // Clear previous progress messages
         setHasProgressMessages(true);
         
-        // Ensure SSE connection is established before starting processing
-        if (!sseConnected) {
-            console.log("🔄 Ensuring SSE connection is established before starting processing");
-            const newEventSource = setupEventSource();
+        // Ensure WebSocket connection is established before starting processing
+        if (!wsConnected) {
+            console.log("🔄 Ensuring WebSocket connection is established before starting processing");
+            const newSocket = setupWebSocket();
             
-            // Wait for SSE connection to be established (with timeout)
+            // Wait for WebSocket connection to be established (with timeout)
             const connectionTimeout = 5000; // 5 second timeout
             const connectionStart = Date.now();
             
             await new Promise((resolve) => {
                 const checkConnection = () => {
-                    if (sseConnected) {
-                        console.log("✅ SSE connection confirmed, proceeding with processing");
+                    if (wsConnected) {
+                        console.log("✅ WebSocket connection confirmed, proceeding with processing");
                         resolve(true);
                     } else if (Date.now() - connectionStart > connectionTimeout) {
-                        console.log("⏰ SSE connection timeout, proceeding anyway");
+                        console.log("⏰ WebSocket connection timeout, proceeding anyway");
                         resolve(false);
                     } else {
                         // Still connecting, wait a bit more
@@ -537,38 +635,53 @@ const App = () => {
         setStartingTimeoutId(timeoutId);
         
         try {
-            const { data } = await appGlobalClient.query({
-                query: gql`query startProcessing($signingkey: String!, $folderPath: String!, $confidence: Float!, $model: String!, $saveResults: Boolean, $resultsFolder: String) {
-                    startProcessing(signingkey: $signingkey, folderPath: $folderPath, confidence: $confidence, model: $model, saveResults: $saveResults, resultsFolder: $resultsFolder)
-                }`,
-                variables: {
+            // Use WebSocket for starting processing
+            if (socket && wsConnected) {
+                console.log("🚀 Starting processing via WebSocket");
+                socket.emit('start_detection', {
                     signingkey: apiSigningKey,
                     folderPath: selectedFolder,
                     confidence: confidenceThreshold,
                     model: selectedModel,
-                    saveResults: true,  // Always save results now
+                    saveResults: true,
                     resultsFolder: resultsFolder
-                }
-            });
-            
-            console.log("📡 GraphQL startProcessing response:", data.startProcessing);
-            
-            if (data.startProcessing.startsWith("error")) {
-                const errorMessage = data.startProcessing;
-                setProgressMessages(prev => [...prev, errorMessage]);
-                setHasProgressMessages(true);
-                setIsProcessing(false);
-                setIsStarting(false);
-                // Clear timeout on error
-                if (startingTimeoutId) {
-                    clearTimeout(startingTimeoutId);
-                    setStartingTimeoutId(null);
-                }
-                console.log("❌ Processing Error:", errorMessage);
+                });
             } else {
-                console.log("✅ Processing Started Successfully");
-                // The SSE 'processing_started' event will set isProcessing=true when backend confirms processing started
-                // Keep isStarting=true until we receive the processing_started event
+                // Fallback to GraphQL if WebSocket is not available
+                console.log("🔄 WebSocket not available, falling back to GraphQL");
+                const { data } = await appGlobalClient.query({
+                    query: gql`query startProcessing($signingkey: String!, $folderPath: String!, $confidence: Float!, $model: String!, $saveResults: Boolean, $resultsFolder: String) {
+                        startProcessing(signingkey: $signingkey, folderPath: $folderPath, confidence: $confidence, model: $model, saveResults: $saveResults, resultsFolder: $resultsFolder)
+                    }`,
+                    variables: {
+                        signingkey: apiSigningKey,
+                        folderPath: selectedFolder,
+                        confidence: confidenceThreshold,
+                        model: selectedModel,
+                        saveResults: true,
+                        resultsFolder: resultsFolder
+                    }
+                });
+                
+                console.log("📡 GraphQL startProcessing response:", data.startProcessing);
+                
+                if (data.startProcessing.startsWith("error")) {
+                    const errorMessage = data.startProcessing;
+                    setProgressMessages(prev => [...prev, errorMessage]);
+                    setHasProgressMessages(true);
+                    setIsProcessing(false);
+                    setIsStarting(false);
+                    // Clear timeout on error
+                    if (startingTimeoutId) {
+                        clearTimeout(startingTimeoutId);
+                        setStartingTimeoutId(null);
+                    }
+                    console.log("❌ Processing Error:", errorMessage);
+                } else {
+                    console.log("✅ Processing Started Successfully");
+                    // The 'processing_started' event will set isProcessing=true when backend confirms processing started
+                    // Keep isStarting=true until we receive the processing_started event
+                }
             }
         } catch (error) {
             console.error("Error starting processing:", error);
@@ -586,27 +699,39 @@ const App = () => {
 
     const handleStopProcessing = useCallback(async () => {
         console.log("🛑 User clicked 'Stop Processing' button");
-        if (!appGlobalClient || !apiSigningKey) return;
+        if (!apiSigningKey) return;
         
         try {
-            await appGlobalClient.query({
-                query: gql`query stopProcessing($signingkey: String!) {
-                    stopProcessing(signingkey: $signingkey)
-                }`,
-                variables: { signingkey: apiSigningKey }
-            });
-            console.log("📡 GraphQL stopProcessing completed");
-            setIsProcessing(false);
-            setIsStarting(false); // Clear starting state
-            // Clear timeout if still active
-            if (startingTimeoutId) {
-                clearTimeout(startingTimeoutId);
-                setStartingTimeoutId(null);
+            // Use WebSocket for stopping processing
+            if (socket && wsConnected) {
+                console.log("🛑 Stopping processing via WebSocket");
+                socket.emit('stop_detection', {
+                    signingkey: apiSigningKey
+                });
+            } else {
+                // Fallback to GraphQL if WebSocket is not available
+                console.log("🔄 WebSocket not available, falling back to GraphQL");
+                if (appGlobalClient) {
+                    await appGlobalClient.query({
+                        query: gql`query stopProcessing($signingkey: String!) {
+                            stopProcessing(signingkey: $signingkey)
+                        }`,
+                        variables: { signingkey: apiSigningKey }
+                    });
+                    console.log("📡 GraphQL stopProcessing completed");
+                    setIsProcessing(false);
+                    setIsStarting(false); // Clear starting state
+                    // Clear timeout if still active
+                    if (startingTimeoutId) {
+                        clearTimeout(startingTimeoutId);
+                        setStartingTimeoutId(null);
+                    }
+                }
             }
         } catch (error) {
             console.error("Error stopping processing:", error);
         }
-    }, [appGlobalClient, apiSigningKey, startingTimeoutId]);
+    }, [appGlobalClient, apiSigningKey, startingTimeoutId, socket, wsConnected]);
 
 
     const handleOpenResults = () => {
@@ -630,13 +755,13 @@ const App = () => {
         <div className="App">
             <div className="app-container">
                 <div className="left-panel">
-                    <h2>Face Recognition App</h2>
+                    <h2>TinyExplorer FaceDetectionApp</h2>
                     <div className="connection-status">
-                        <span className={`status-indicator ${sseConnected ? 'connected' : 'disconnected'}`}>
-                            {sseConnected ? '✅' : '❌'}
+                        <span className={`status-indicator ${wsConnected ? 'connected' : 'disconnected'}`}>
+                            {wsConnected ? '✅' : '❌'}
                         </span>
                         <span className="status-text">
-                            {sseConnected ? 'Connected' : 'Disconnected'}
+                            {wsConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
                         </span>
                     </div>
                     
@@ -718,7 +843,7 @@ const App = () => {
                                 disabled={!selectedFolder}
                                 className="start-btn"
                             >
-                                Start Recognition
+                                Start Detection
                             </button>
                         ) : isStarting ? (
                             <button 
@@ -793,7 +918,7 @@ const App = () => {
 
                         {!hasProgressMessages && !results.length && (
                             <div className="empty-state">
-                                <p>Select a file or folder and start recognition to see results here.</p>
+                                <p>Select a file or folder and start detection to see results here.</p>
                             </div>
                         )}
                     </div>

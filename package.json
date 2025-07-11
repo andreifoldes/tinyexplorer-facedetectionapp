@@ -1,5 +1,5 @@
 {
-    "name": "electron-python",
+    "name": "tinyexplorer-facedetectionapp",
     "version": "0.1.0",
     "private": true,
     "homepage": "./",
@@ -7,11 +7,11 @@
         "name": "Tamas Foldes",
         "email": "tamas.foldes@oii.ox.ac.uk"
     },
-    "description": "Electron application with Python Flask backend for face recognition using YOLO models",
+    "description": "Electron application with Python Flask backend for face detection using YOLO models",
     "main": "buildMain/index.js",
     "scripts": {
         "lint": "npm run main-lint && npm run react-lint",
-        "start": "concurrently \"ELECTRON_TARGET=true npm run react-start\" \"npm run main-start\"",
+        "start": "concurrently \"npm run react-start\" \"npm run main-start\"",
         "watch": "concurrently \"npm run main-watch\" \"npm run react-watch\"",
         "build": "npm run python-build && npm run react-build && npm run main-build",
         "main-lint": "tslint -c tslint.json -p tsconfig.electronMain.json",
@@ -20,11 +20,10 @@
         "main-build": "tsc -p tsconfig.electronMain.json && electron-builder",
         "react-lint": "tslint -c tslint.json -p tsconfig.json",
         "react-start": "NODE_OPTIONS=\"--openssl-legacy-provider\" craco start",
-        "browser-dev": "NODE_OPTIONS=\"--openssl-legacy-provider\" craco start",
         "react-watch": "tsc -w -p tsconfig.json",
-        "react-build": "ELECTRON_TARGET=true NODE_OPTIONS=\"--openssl-legacy-provider\" craco build",
+        "react-build": "NODE_OPTIONS=\"--openssl-legacy-provider\" craco build",
         "python-build": "node scripts/bundle-python.js",
-        "python-build-minimal": "shx rm -rf pythondist && shx mkdir -p pythondist && shx cp -r python/ pythondist/ && pip install flask flask-cors graphene flask-graphql --target pythondist/python-deps",
+        "python-build-minimal": "shx rm -rf pythondist && shx mkdir -p pythondist && shx cp -r python/ pythondist/ && pip install flask flask-cors flask-socketio graphene flask-graphql --target pythondist/python-deps",
         "test:gui": "playwright test",
         "test:gui:headed": "playwright test --headed"
     },
@@ -35,6 +34,7 @@
         "@types/node": "^11.11.3",
         "@types/react": "^16.8.8",
         "@types/react-dom": "^16.8.2",
+        "@types/socket.io-client": "^1.4.36",
         "@types/superagent": "^4.1.1",
         "@types/uuid": "^3.4.4",
         "apollo-cache-inmemory": "^1.5.1",
@@ -49,6 +49,7 @@
         "react-dom": "^16.8.4",
         "react-scripts": "3.0.1",
         "shx": "^0.3.2",
+        "socket.io-client": "^2.5.0",
         "superagent": "^5.0.2",
         "typescript": "^3.3.3333",
         "uuid": "^3.3.2"
@@ -77,8 +78,8 @@
         "not op_mini all"
     ],
     "build": {
-        "appId": "com.example.electron-python-face-recognition",
-        "productName": "Electron Python Face Recognition",
+        "appId": "com.example.tinyexplorer-facedetectionapp",
+        "productName": "TinyExplorer FaceDetectionApp",
         "forceCodeSigning": false,
         "directories": {
             "buildResources": "build",
@@ -99,19 +100,27 @@
             "target": [
                 {
                     "target": "AppImage",
-                    "arch": ["x64"]
+                    "arch": [
+                        "x64"
+                    ]
                 },
                 {
                     "target": "snap",
-                    "arch": ["x64"]
+                    "arch": [
+                        "x64"
+                    ]
                 },
                 {
                     "target": "deb",
-                    "arch": ["x64"]
+                    "arch": [
+                        "x64"
+                    ]
                 },
                 {
                     "target": "rpm",
-                    "arch": ["x64"]
+                    "arch": [
+                        "x64"
+                    ]
                 }
             ],
             "category": "Development"
@@ -120,11 +129,17 @@
             "target": [
                 {
                     "target": "dmg",
-                    "arch": ["x64", "arm64"]
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
                 },
                 {
                     "target": "zip",
-                    "arch": ["x64", "arm64"]
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
                 }
             ],
             "category": "public.app-category.developer-tools"
@@ -133,11 +148,17 @@
             "target": [
                 {
                     "target": "nsis",
-                    "arch": ["x64", "ia32"]
+                    "arch": [
+                        "x64",
+                        "ia32"
+                    ]
                 },
                 {
                     "target": "zip",
-                    "arch": ["x64", "ia32"]
+                    "arch": [
+                        "x64",
+                        "ia32"
+                    ]
                 }
             ]
         },

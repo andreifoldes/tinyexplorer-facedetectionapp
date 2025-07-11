@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 from graphene import ObjectType, String, Schema, Float, List, Boolean
 from calc import calc as real_calc
-from face_recognition import FaceRecognitionProcessor
+from face_detection import FaceDetectionProcessor
 import argparse
 import os
 import threading
@@ -67,7 +68,7 @@ class Query(ObjectType):
         """echo any text"""
         return text
     
-    # Face Recognition endpoints
+    # Face Detection endpoints
     load_model = String(description="Load YOLO model", signingkey=String(required=True), model_path=String(required=True))
     def resolve_load_model(self, info, signingkey, model_path):
         if signingkey != apiSigningKey:
@@ -88,7 +89,7 @@ class Query(ObjectType):
         except Exception as e:
             return f"error: {str(e)}"
     
-    start_processing = String(description="Start face recognition processing",
+    start_processing = String(description="Start face detection processing",
                              signingkey=String(required=True), 
                              folder_path=String(required=True),
                              confidence=Float(required=True),
@@ -237,16 +238,16 @@ def remove_event_queue(q):
         event_queues.remove(q)
 
 def broadcast_event(event_type, data):
-    """Broadcast an event to all connected SSE clients"""
+    """Broadcast an event to all connected clients (both SSE and WebSocket)"""
     event_data = {
         'type': event_type,
         'data': data,
         'timestamp': time.time()
     }
     
-    print(f"Broadcasting event '{event_type}' to {len(event_queues)} SSE clients")
+    print(f"Broadcasting event '{event_type}' to {len(event_queues)} SSE clients and WebSocket clients")
     
-    # Remove disconnected queues
+    # SSE clients
     queues_to_remove = []
     for q in event_queues:
         try:
@@ -259,6 +260,13 @@ def broadcast_event(event_type, data):
     for q in queues_to_remove:
         event_queues.remove(q)
         print(f"Removed disconnected SSE client")
+    
+    # WebSocket clients
+    try:
+        socketio.emit('face_detection_event', event_data)
+        print(f"Successfully sent event to WebSocket clients")
+    except Exception as e:
+        print(f"Error sending WebSocket event: {e}")
 
 def progress_callback(message):
     progress_messages.append(message)
@@ -294,10 +302,11 @@ class StdoutCapture:
 # Install stdout capture
 sys.stdout = StdoutCapture()
 
-face_processor = FaceRecognitionProcessor(progress_callback, completion_callback)
+face_processor = FaceDetectionProcessor(progress_callback, completion_callback)
 
 app = Flask(__name__)
 CORS(app) # Allows all domains to access the flask server via CORS
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', engineio_logger=True, socketio_logger=True)
 
 schema = Schema(query=Query)
 
@@ -307,7 +316,7 @@ def health():
 
 @app.route('/', methods=['GET'])
 def root():
-    return jsonify({'message': 'Face Recognition API Server'})
+    return jsonify({'message': 'Face Detection API Server'})
 
 @app.route('/events/<signing_key>/', methods=['GET'])
 def events_stream(signing_key):
@@ -408,5 +417,68 @@ def graphiql():
     </html>
     '''
 
+# WebSocket event handlers
+@socketio.on('connect')
+def handle_connect():
+    print(f"WebSocket client connected: {request.sid}")
+    emit('connected', {'message': 'WebSocket connection established'})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f"WebSocket client disconnected: {request.sid}")
+
+@socketio.on('start_detection')
+def handle_start_detection(data):
+    """Handle start detection request via WebSocket"""
+    print(f"WebSocket start_detection received: {data}")
+    
+    # Validate signing key
+    if data.get('signingkey') != apiSigningKey:
+        emit('error', {'message': 'Invalid signature'})
+        return
+    
+    try:
+        # Start processing in a separate thread
+        thread = threading.Thread(target=face_processor.process_folder, 
+                                args=(data['folderPath'], data['confidence'], data['model'], 
+                                     data.get('saveResults', False), data.get('resultsFolder')))
+        thread.start()
+        emit('processing_started', {'message': 'Processing started successfully'})
+    except Exception as e:
+        emit('error', {'message': f'Error starting processing: {str(e)}'})
+
+@socketio.on('stop_detection')
+def handle_stop_detection(data):
+    """Handle stop detection request via WebSocket"""
+    print(f"WebSocket stop_detection received: {data}")
+    
+    # Validate signing key
+    if data.get('signingkey') != apiSigningKey:
+        emit('error', {'message': 'Invalid signature'})
+        return
+    
+    try:
+        face_processor.stop_processing()
+        emit('processing_stopped', {'message': 'Processing stopped successfully'})
+    except Exception as e:
+        emit('error', {'message': f'Error stopping processing: {str(e)}'})
+
+@socketio.on('get_status')
+def handle_get_status(data):
+    """Handle status request via WebSocket"""
+    # Validate signing key
+    if data.get('signingkey') != apiSigningKey:
+        emit('error', {'message': 'Invalid signature'})
+        return
+    
+    try:
+        status = {
+            "is_processing": face_processor.is_processing,
+            "results_count": len(face_processor.results)
+        }
+        emit('status_update', status)
+    except Exception as e:
+        emit('error', {'message': f'Error getting status: {str(e)}'})
+
 if __name__ == "__main__":
-    app.run(port=args.apiport)
+    socketio.run(app, port=args.apiport, debug=False, allow_unsafe_werkzeug=True)
