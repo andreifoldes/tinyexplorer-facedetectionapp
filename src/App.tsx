@@ -82,6 +82,63 @@ const App = () => {
         }
     }, []);
 
+    const fetchResults = useCallback(async () => {
+        try {
+            const response = await sendPythonCommand({ type: 'get_results' });
+            
+            if (response.status === 'success') {
+                console.log("Final results received:", response.results.length, "detections");
+                setResults(response.results);
+            } else {
+                console.error("Failed to fetch results:", response.message);
+            }
+        } catch (error) {
+            console.error("Error fetching results:", error);
+        }
+    }, [sendPythonCommand]);
+
+    const handleCompletionEvent = useCallback((data: any) => {
+        console.log("Completion event:", data);
+        
+        switch (data.status) {
+            case 'processing_started':
+                console.log("Backend processing started");
+                setIsProcessing(true);
+                setIsStarting(false);
+                setProgress(0);
+                break;
+                
+            case 'image_completed':
+                setProgress(data.progress_percent);
+                console.log(`Image ${data.image_index}/${data.total_images} completed: ${data.detections_in_image} faces found`);
+                break;
+                
+            case 'frame_completed':
+                setProgress(data.progress_percent);
+                console.log(`Frame ${data.frame_index} at ${data.timestamp.toFixed(1)}s: ${data.detections_in_frame} faces found`);
+                break;
+                
+            case 'completed':
+            case 'finished':
+                console.log("Processing completed, fetching final results");
+                setIsProcessing(false);
+                setIsStarting(false);
+                setProgress(100);
+                
+                // Fetch final results
+                fetchResults();
+                break;
+                
+            case 'error':
+                console.error("Processing error:", data.error);
+                setIsProcessing(false);
+                setIsStarting(false);
+                setProgressMessages(prev => [...prev, `❌ Error: ${data.error}`]);
+                setHasProgressMessages(true);
+                break;
+        }
+    }, [fetchResults]);
+
     // Handle Python events
     useEffect(() => {
         if (!ipcRenderer) return;
@@ -126,64 +183,7 @@ const App = () => {
             ipcRenderer.removeListener("python-event", handlePythonEvent);
             ipcRenderer.removeListener("pythonStatus", handlePythonStatus);
         };
-    }, [availableModels.length, checkPythonStatus, loadAvailableModels]);
-
-    const handleCompletionEvent = useCallback((data: any) => {
-        console.log("Completion event:", data);
-        
-        switch (data.status) {
-            case 'processing_started':
-                console.log("Backend processing started");
-                setIsProcessing(true);
-                setIsStarting(false);
-                setProgress(0);
-                break;
-                
-            case 'image_completed':
-                setProgress(data.progress_percent);
-                console.log(`Image ${data.image_index}/${data.total_images} completed: ${data.detections_in_image} faces found`);
-                break;
-                
-            case 'frame_completed':
-                setProgress(data.progress_percent);
-                console.log(`Frame ${data.frame_index} at ${data.timestamp.toFixed(1)}s: ${data.detections_in_frame} faces found`);
-                break;
-                
-            case 'completed':
-            case 'finished':
-                console.log("Processing completed, fetching final results");
-                setIsProcessing(false);
-                setIsStarting(false);
-                setProgress(100);
-                
-                // Fetch final results
-                fetchResults();
-                break;
-                
-            case 'error':
-                console.error("Processing error:", data.error);
-                setIsProcessing(false);
-                setIsStarting(false);
-                setProgressMessages(prev => [...prev, `❌ Error: ${data.error}`]);
-                setHasProgressMessages(true);
-                break;
-        }
-    }, []);
-
-    const fetchResults = useCallback(async () => {
-        try {
-            const response = await sendPythonCommand({ type: 'get_results' });
-            
-            if (response.status === 'success') {
-                console.log("Final results received:", response.results.length, "detections");
-                setResults(response.results);
-            } else {
-                console.error("Failed to fetch results:", response.message);
-            }
-        } catch (error) {
-            console.error("Error fetching results:", error);
-        }
-    }, [sendPythonCommand]);
+    }, [availableModels.length, checkPythonStatus, loadAvailableModels, handleCompletionEvent]);
 
     const handleSelectResultsFolder = () => {
         console.log("Prompting user to select results folder");

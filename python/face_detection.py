@@ -9,10 +9,11 @@ import csv
 from datetime import datetime
 import torch
 import requests
+import sys
 
 # RetinaFace temporarily disabled due to tf-keras dependency issue
 RETINAFACE_AVAILABLE = False
-print("RetinaFace temporarily disabled - using YOLO models only")
+print("RetinaFace temporarily disabled - using YOLO models only", file=sys.stderr)
 
 class FaceDetectionProcessor:
     def __init__(self, progress_callback: Optional[Callable] = None, completion_callback: Optional[Callable] = None):
@@ -296,7 +297,7 @@ class FaceDetectionProcessor:
                 if save_results and result_folder:
                     self.progress_callback(f"{self.status_symbols['folder']} Results saved to: {result_folder}")
                 # Log technical completion message to console only
-                print(f"{self.status_symbols['success']} All processing finished - setting is_processing = False")
+                print(f"{self.status_symbols['success']} All processing finished - setting is_processing = False", file=sys.stderr)
             
             # Emit completion event
             if self.completion_callback:
@@ -311,7 +312,7 @@ class FaceDetectionProcessor:
             if self.progress_callback:
                 self.progress_callback(f"{self.status_symbols['error']} Error during processing: {str(e)}")
             # Log technical message to console only
-            print(f"{self.status_symbols['warning']} Setting is_processing = False due to error")
+            print(f"{self.status_symbols['warning']} Setting is_processing = False due to error", file=sys.stderr)
             
             # Emit error completion event
             if self.completion_callback:
@@ -323,9 +324,9 @@ class FaceDetectionProcessor:
         finally:
             # Always reset the processing flag, regardless of success or failure
             # Log technical messages to console only
-            print(f"{self.status_symbols['info']} FINALLY block: Setting is_processing = False (was {self.is_processing})")
+            print(f"{self.status_symbols['info']} FINALLY block: Setting is_processing = False (was {self.is_processing})", file=sys.stderr)
             self.is_processing = False
-            print(f"{self.status_symbols['success']} is_processing is now: {self.is_processing}")
+            print(f"{self.status_symbols['success']} is_processing is now: {self.is_processing}", file=sys.stderr)
             
             # Always emit final completion event in finally block
             if self.completion_callback:

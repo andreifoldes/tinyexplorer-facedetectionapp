@@ -37,22 +37,64 @@
                 window.ipcRendererStub = {
                     callbacks: {},
                     on: function(channel, callback) {
-                        if (channel === "apiDetails") {
-                            // Mock API details for web mode
+                        if (channel === "pythonStatus") {
+                            // Mock Python status for web mode
                             setTimeout(() => {
-                                callback({}, JSON.stringify({
-                                    port: 5000,
-                                    signingKey: "devkey"
-                                }));
+                                callback({}, {
+                                    ready: true,
+                                    pid: 12345
+                                });
                             }, 100);
                         } else {
                             this.callbacks[channel] = callback;
                         }
                     },
+                    once: function(channel, callback) {
+                        this.callbacks[channel] = callback;
+                    },
+                    removeAllListeners: function(channel) {
+                        delete this.callbacks[channel];
+                    },
+                    removeListener: function(channel, callback) {
+                        delete this.callbacks[channel];
+                    },
                     send: function(channel, data) {
                         console.log("IPC stub send:", channel, data);
                         
-                        if (channel === "browse-file") {
+                        if (channel === "python-command") {
+                            // Mock Python command responses for web mode
+                            setTimeout(() => {
+                                if (this.callbacks['python-response']) {
+                                    let response;
+                                    if (data.type === 'get_models') {
+                                        response = {
+                                            response: {
+                                                status: 'success',
+                                                models: ['yolov8n.pt', 'yolov8l-face.pt']
+                                            }
+                                        };
+                                    } else {
+                                        response = {
+                                            response: {
+                                                status: 'success',
+                                                message: 'Mock response'
+                                            }
+                                        };
+                                    }
+                                    this.callbacks['python-response']({}, response);
+                                }
+                            }, 100);
+                        } else if (channel === "getPythonStatus") {
+                            // Mock Python status response
+                            setTimeout(() => {
+                                if (this.callbacks['pythonStatus']) {
+                                    this.callbacks['pythonStatus']({}, {
+                                        ready: true,
+                                        pid: 12345
+                                    });
+                                }
+                            }, 100);
+                        } else if (channel === "browse-file") {
                             // Create file input for file selection
                             const input = document.createElement('input');
                             input.type = 'file';
