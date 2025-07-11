@@ -149,7 +149,27 @@ const App = () => {
             switch (eventData.type) {
                 case 'progress':
                     if (!eventData.data.includes('ℹ️ DEBUG:')) {
-                        setProgressMessages(prev => [...prev, eventData.data]);
+                        const message = eventData.data;
+                        
+                        // Check if this is a download progress update (contains "Downloading" and percentage)
+                        const isDownloadProgress = message.includes('⏳ Downloading') && message.includes('%');
+                        
+                        setProgressMessages(prev => {
+                            if (isDownloadProgress && prev.length > 0) {
+                                // Check if the last message was also a download progress for the same model
+                                const lastMessage = prev[prev.length - 1];
+                                const currentModel = message.match(/Downloading ([^:]+):/)?.[1];
+                                const lastModel = lastMessage.match(/Downloading ([^:]+):/)?.[1];
+                                
+                                if (lastMessage.includes('⏳ Downloading') && currentModel === lastModel) {
+                                    // Update the last message instead of adding a new one
+                                    return [...prev.slice(0, -1), message];
+                                }
+                            }
+                            
+                            // For all other messages or initial download message, add normally
+                            return [...prev, message];
+                        });
                         setHasProgressMessages(true);
                     }
                     break;
@@ -365,14 +385,6 @@ const App = () => {
             <div className="app-container">
                 <div className="left-panel">
                     <h2>TinyExplorer FaceDetectionApp</h2>
-                    <div className="connection-status">
-                        <span className={`status-indicator ${pythonReady ? 'connected' : 'disconnected'}`}>
-                            {pythonReady ? '✅' : '❌'}
-                        </span>
-                        <span className="status-text">
-                            {pythonReady ? 'Python Ready' : 'Python Not Ready'}
-                        </span>
-                    </div>
                     
                     <div className="control-section">
                         <label>Select File or Folder:</label>
@@ -497,37 +509,10 @@ const App = () => {
                             </div>
                         )}
 
-                        {results.length > 0 && (
-                            <div className="results-section">
-                                <div className="results-header">
-                                    <h3>Results: {results.length} face detections found</h3>
-                                    <button 
-                                        onClick={handleOpenResults}
-                                        className="export-btn"
-                                        disabled={isProcessing || !resultsFolder}
-                                    >
-                                        <span role="img" aria-label="folder">📁</span> Open Results
-                                    </button>
-                                </div>
-                                <div className="results-window">
-                                    {results.map((result, index) => (
-                                        <div key={index} className="result-item">
-                                            <div><strong>File:</strong> {result.image_path ? result.image_path.split('/').pop() : 'Unknown'}</div>
-                                            <div><strong>Confidence:</strong> {result.confidence ? result.confidence.toFixed(3) : 'N/A'}</div>
-                                            <div><strong>Position:</strong> x:{Math.round(result.x || 0)}, y:{Math.round(result.y || 0)}</div>
-                                            <div><strong>Size:</strong> {Math.round(result.width || 0)} × {Math.round(result.height || 0)}</div>
-                                            {result.frame_idx !== undefined && (
-                                                <div><strong>Frame:</strong> {result.frame_idx} (Time: {result.timestamp ? result.timestamp.toFixed(1) : '0.0'}s)</div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
 
-                        {!hasProgressMessages && !results.length && (
+                        {!hasProgressMessages && (
                             <div className="empty-state">
-                                <p>Select a file or folder and start detection to see results here.</p>
+                                <p>Select a file or folder and start detection to see progress here.</p>
                             </div>
                         )}
                     </div>

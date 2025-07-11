@@ -259,7 +259,7 @@
   font-weight: 600;
 }
 
-.message-window, .results-window {
+.message-window {
   height: 300px;
   overflow-y: auto;
   border: 1px solid #dee2e6;
@@ -272,7 +272,7 @@
   line-height: 1.4;
 }
 
-.message-window div, .results-window div {
+.message-window div {
   padding: 2px 0;
   border-bottom: 1px solid #f8f9fa;
 }
@@ -293,14 +293,12 @@
 
 /* Scrollbar styling */
 .message-window::-webkit-scrollbar,
-.results-window::-webkit-scrollbar,
 .left-panel::-webkit-scrollbar,
 .right-panel::-webkit-scrollbar {
   width: 6px;
 }
 
 .message-window::-webkit-scrollbar-track,
-.results-window::-webkit-scrollbar-track,
 .left-panel::-webkit-scrollbar-track,
 .right-panel::-webkit-scrollbar-track {
   background: #f1f1f1;
@@ -308,7 +306,6 @@
 }
 
 .message-window::-webkit-scrollbar-thumb,
-.results-window::-webkit-scrollbar-thumb,
 .left-panel::-webkit-scrollbar-thumb,
 .right-panel::-webkit-scrollbar-thumb {
   background: #c1c1c1;
@@ -316,7 +313,6 @@
 }
 
 .message-window::-webkit-scrollbar-thumb:hover,
-.results-window::-webkit-scrollbar-thumb:hover,
 .left-panel::-webkit-scrollbar-thumb:hover,
 .right-panel::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
@@ -409,10 +405,6 @@
   display: inline-block;
 }
 
-.results-window {
-  max-height: 400px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
 
 @keyframes App-logo-spin {
   from {

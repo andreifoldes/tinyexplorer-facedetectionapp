@@ -1,4 +1,10 @@
 module.exports = {
+    babel: {
+        plugins: [
+            '@babel/plugin-proposal-optional-chaining',
+            '@babel/plugin-proposal-nullish-coalescing-operator'
+        ]
+    },
     webpack: {
         configure: (webpackConfig) => {
             // Use electron-renderer target only when running in Electron context

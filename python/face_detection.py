@@ -46,8 +46,6 @@ class FaceDetectionProcessor:
             "yolov8n-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov8n-face.pt",
             "yolov8m-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov8m-face.pt",
             "yolov8l-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov8l-face.pt",
-            "yolov11n-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov11n-face.pt",
-            "yolov11s-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov11s-face.pt",
             "yolov11m-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov11m-face.pt",
             "yolov11l-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov11l-face.pt"
         }
@@ -162,6 +160,8 @@ class FaceDetectionProcessor:
         """Process all images and videos in a folder or single file"""
         self.is_processing = True
         self.results = []
+        # Store confidence threshold for summary export
+        self.current_confidence = confidence_threshold
         
         # Send processing started event
         if self.completion_callback:
@@ -291,6 +291,10 @@ class FaceDetectionProcessor:
             if save_results and result_folder and self.results:
                 csv_path = os.path.join(result_folder, "detection_results.csv")
                 self.export_results_to_csv(self.results, csv_path)
+                
+                # Export summary statistics 
+                summary_csv_path = os.path.join(result_folder, "summary.csv")
+                self.export_summary_to_csv(folder_path, image_files, video_files, result_folder, summary_csv_path)
             
             if self.progress_callback:
                 self.progress_callback(f"{self.status_symbols['complete']} Processing complete. Found {len(self.results)} face detections across {total_files} files")
@@ -660,14 +664,98 @@ class FaceDetectionProcessor:
                 self.progress_callback(f"{self.status_symbols['error']} Error exporting results: {str(e)}")
             return False
     
+    def export_summary_to_csv(self, folder_path: str, image_files: List[str], video_files: List[str], result_folder: str, output_path: str):
+        """Export summary statistics to CSV file (like old_script.py)"""
+        try:
+            summary_headers = ['path', 'type', 'total_processed_frames', 'total_duration', 'processed_frames_with_faces', 'face_percentage', 'model', 'confidence_threshold']
+            summary_data = []
+            
+            # Calculate summary for images
+            if image_files:
+                images_with_faces = 0
+                # Count images that have face detections
+                image_paths_with_faces = set()
+                for detection in self.results:
+                    if any(detection['image_path'].endswith(os.path.basename(img)) for img in image_files):
+                        image_paths_with_faces.add(detection['image_path'])
+                
+                images_with_faces = len(image_paths_with_faces)
+                face_percentage_images = (images_with_faces / len(image_files)) * 100 if len(image_files) > 0 else 0
+                
+                summary_images = [
+                    folder_path,
+                    'image(s)', 
+                    len(image_files),
+                    'N/A',
+                    images_with_faces,
+                    face_percentage_images,
+                    self.current_model_path or 'Unknown',
+                    getattr(self, 'current_confidence', 'Unknown')
+                ]
+                summary_data.append(summary_images)
+            
+            # Calculate summary for videos  
+            if video_files:
+                # Count video frames with faces
+                video_frames_with_faces = 0
+                total_video_frames = 0
+                total_duration = 0
+                
+                for video_file in video_files:
+                    try:
+                        cap = cv2.VideoCapture(video_file)
+                        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                        fps = cap.get(cv2.CAP_PROP_FPS)
+                        duration = frame_count / fps if fps > 0 else 0
+                        total_duration += duration
+                        
+                        # Estimate processed frames (1 per second)
+                        frames_to_skip = max(1, int(fps))
+                        processed_frames_this_video = frame_count // frames_to_skip
+                        total_video_frames += processed_frames_this_video
+                        cap.release()
+                    except Exception as e:
+                        if self.progress_callback:
+                            self.progress_callback(f"{self.status_symbols['warning']} Could not get video info for {video_file}: {str(e)}")
+                
+                # Count detections from video frames
+                for detection in self.results:
+                    if 'frame_idx' in detection:  # This indicates it's from a video
+                        video_frames_with_faces += 1
+                
+                face_percentage_videos = (video_frames_with_faces / total_video_frames) * 100 if total_video_frames > 0 else 0
+                
+                summary_videos = [
+                    folder_path,
+                    'video(s)',
+                    total_video_frames,
+                    total_duration,
+                    video_frames_with_faces,
+                    face_percentage_videos,
+                    self.current_model_path or 'Unknown',
+                    getattr(self, 'current_confidence', 'Unknown')
+                ]
+                summary_data.append(summary_videos)
+            
+            # Write summary CSV
+            with open(output_path, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(summary_headers)
+                writer.writerows(summary_data)
+            
+            if self.progress_callback:
+                self.progress_callback(f"{self.status_symbols['success']} Summary exported to {output_path}")
+            
+            return True
+            
+        except Exception as e:
+            if self.progress_callback:
+                self.progress_callback(f"{self.status_symbols['error']} Error exporting summary: {str(e)}")
+            return False
+    
     def get_available_models(self) -> List[str]:
-        """Get list of available models"""
+        """Get list of available models (limited to match old_script.py)"""
         models = [
-            "yolov8n.pt",
-            "yolov8s.pt", 
-            "yolov8m.pt",
-            "yolov8l.pt",
-            "yolov8x.pt",
             "yolov8n-face.pt",
             "yolov8m-face.pt",
             "yolov8l-face.pt",
