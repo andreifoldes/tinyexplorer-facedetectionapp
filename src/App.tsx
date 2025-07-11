@@ -158,8 +158,10 @@ const App = () => {
                             if (isDownloadProgress && prev.length > 0) {
                                 // Check if the last message was also a download progress for the same model
                                 const lastMessage = prev[prev.length - 1];
-                                const currentModel = message.match(/Downloading ([^:]+):/)?.[1];
-                                const lastModel = lastMessage.match(/Downloading ([^:]+):/)?.[1];
+                                const currentModelMatch = message.match(/Downloading ([^:]+):/);
+                                const lastModelMatch = lastMessage.match(/Downloading ([^:]+):/);
+                                const currentModel = currentModelMatch ? currentModelMatch[1] : null;
+                                const lastModel = lastModelMatch ? lastModelMatch[1] : null;
                                 
                                 if (lastMessage.includes('⏳ Downloading') && currentModel === lastModel) {
                                     // Update the last message instead of adding a new one
