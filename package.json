@@ -34,7 +34,6 @@
         "@types/node": "^11.11.3",
         "@types/react": "^16.8.8",
         "@types/react-dom": "^16.8.2",
-        "@types/socket.io-client": "^1.4.36",
         "@types/superagent": "^4.1.1",
         "@types/uuid": "^3.4.4",
         "apollo-cache-inmemory": "^1.5.1",
@@ -49,7 +48,7 @@
         "react-dom": "^16.8.4",
         "react-scripts": "3.0.1",
         "shx": "^0.3.2",
-        "socket.io-client": "^2.5.0",
+        "socket.io-client": "^4.8.1",
         "superagent": "^5.0.2",
         "typescript": "^3.3.3333",
         "uuid": "^3.3.2"

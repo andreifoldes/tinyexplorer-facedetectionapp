@@ -4,8 +4,9 @@ import { HttpLink } from "apollo-link-http";
 import gql from "graphql-tag";
 import fetch from "isomorphic-fetch";
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import * as io from "socket.io-client";
 import "./App.css";
+
+const { io } = require("socket.io-client");
 
 const ipcRenderer = (window as any).isInElectronRenderer
         ? (window as any).nodeRequire("electron").ipcRenderer
@@ -29,7 +30,7 @@ const App = () => {
     const [isVideoFile, setIsVideoFile] = useState(false);
     const [eventSource, setEventSource] = useState<EventSource | null>(null);
     const [sseConnected, setSseConnected] = useState(false);
-    const [socket, setSocket] = useState<SocketIOClient.Socket | null>(null);
+    const [socket, setSocket] = useState<any | null>(null);
     const [wsConnected, setWsConnected] = useState(false);
 
     const appGlobalClient = useMemo(() => {
@@ -300,7 +301,7 @@ const App = () => {
         }
         
         console.log("🔄 Setting up WebSocket connection");
-        const newSocket = io.connect(`http://127.0.0.1:${apiPort}`, {
+        const newSocket = io(`http://127.0.0.1:${apiPort}`, {
             transports: ['websocket'],
             forceNew: true
         });
