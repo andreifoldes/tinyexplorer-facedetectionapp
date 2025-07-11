@@ -14,7 +14,7 @@ import requests
 RETINAFACE_AVAILABLE = False
 print("RetinaFace temporarily disabled - using YOLO models only")
 
-class FaceRecognitionProcessor:
+class FaceDetectionProcessor:
     def __init__(self, progress_callback: Optional[Callable] = None, completion_callback: Optional[Callable] = None):
         self.model = None
         self.progress_callback = progress_callback
@@ -265,6 +265,9 @@ class FaceRecognitionProcessor:
                             'total_detections': len(self.results),
                             'image_path': os.path.basename(image_path)
                         })
+                    
+                    # Small delay to prevent overwhelming the UI
+                    time.sleep(0.05)
                         
                 except Exception as image_error:
                     if self.progress_callback:

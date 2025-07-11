@@ -18,6 +18,9 @@ app.on("ready", () => {
     createWindow();
 });
 
+// Disable GPU acceleration for better compatibility with remote displays
+app.disableHardwareAcceleration();
+
 function createWindow() {
     const win = new BrowserWindow({
         webPreferences: {
