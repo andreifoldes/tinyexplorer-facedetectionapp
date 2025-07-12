@@ -80,3 +80,13 @@ The details of how the electron app launches the Python executable is tricky bec
 # Important
 
 Killing spawned processes under Electron can be tricky so the electron main process sends a message to the Python server telling it to exit when Electron is shutting down (and yes, that does mean that if you are debugging and control-c to kill the npm process hosting the app you can leave a zombie python process, so it's better to close the app normally by closing the window before killing your npm process).
+
+## Playground: RetinaFace and YOLO-Face
+
+A minimal demo script can be found in `python/playground_face_detection.py`. It downloads a sample image and runs face detection using both models.
+
+```bash
+conda env create -f playground.yml
+conda activate face-playground
+python python/playground_face_detection.py
+```
