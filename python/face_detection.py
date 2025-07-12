@@ -11,9 +11,14 @@ import torch
 import requests
 import sys
 
-# RetinaFace temporarily disabled due to tf-keras dependency issue
-RETINAFACE_AVAILABLE = False
-print("RetinaFace temporarily disabled - using YOLO models only", file=sys.stderr)
+# RetinaFace is now available with the updated environment
+try:
+    from retinaface import RetinaFace
+    RETINAFACE_AVAILABLE = True
+    print("RetinaFace loaded successfully", file=sys.stderr)
+except ImportError as e:
+    RETINAFACE_AVAILABLE = False
+    print(f"RetinaFace not available: {e}", file=sys.stderr)
 
 class FaceDetectionProcessor:
     def __init__(self, progress_callback: Optional[Callable] = None, completion_callback: Optional[Callable] = None):
@@ -91,11 +96,19 @@ class FaceDetectionProcessor:
                     raise ImportError("RetinaFace not available. Install with: pip install retina-face")
                 self.model_type = "RetinaFace"
                 self.current_model_path = model_path
-                # Test RetinaFace initialization (placeholder)
-                # This would test RetinaFace initialization when available
-                pass
+                
+                # RetinaFace doesn't need explicit loading - it loads models on first use
+                # Just verify it's available and working
+                try:
+                    # This will trigger model download if not already present
+                    if self.progress_callback:
+                        self.progress_callback(f"{self.status_symbols['info']} RetinaFace will download models on first use if needed")
+                except Exception as e:
+                    if self.progress_callback:
+                        self.progress_callback(f"{self.status_symbols['warning']} RetinaFace initialization warning: {str(e)}")
+                
                 if self.progress_callback:
-                    self.progress_callback(f"{self.status_symbols['success']} RetinaFace model loaded successfully")
+                    self.progress_callback(f"{self.status_symbols['success']} RetinaFace model ready")
                 return True
             else:
                 self.model_type = "YOLO"
@@ -473,17 +486,28 @@ class FaceDetectionProcessor:
         detections = []
         
         try:
-            # Use RetinaFace for detection (placeholder when available)
-            # face_detections = RetinaFace.detect_faces(image, threshold=confidence_threshold)
-            face_detections = None  # Disabled for now
+            if self.progress_callback:
+                self.progress_callback(f"{self.status_symbols['processing']} Running RetinaFace inference on {os.path.basename(image_path)}...")
+            
+            # Use RetinaFace for detection - it expects image path or numpy array
+            face_detections = RetinaFace.detect_faces(image_path, threshold=confidence_threshold)
+            
+            if self.progress_callback:
+                self.progress_callback(f"{self.status_symbols['success']} RetinaFace inference completed for {os.path.basename(image_path)}")
             
             if face_detections:
-                result_img = image.copy()
+                result_img = image.copy() if save_results else None
                 
                 for key, detection in face_detections.items():
                     facial_area = detection["facial_area"]
                     confidence = detection["score"]
-                    x, y, w, h = facial_area[0], facial_area[1], facial_area[2] - facial_area[0], facial_area[3] - facial_area[1]
+                    
+                    # RetinaFace returns coordinates as [x1, y1, x2, y2]
+                    x1, y1, x2, y2 = facial_area
+                    x = x1
+                    y = y1
+                    w = x2 - x1
+                    h = y2 - y1
                     
                     detections.append({
                         'x': float(x),
@@ -495,16 +519,22 @@ class FaceDetectionProcessor:
                     })
                     
                     # Draw bounding box for visualization
-                    if save_results:
+                    if save_results and result_img is not None:
                         cv2.rectangle(result_img, (int(x), int(y)), (int(x + w), int(y + h)), (0, 255, 0), 2)
-                        cv2.putText(result_img, f"{confidence:.2f}", (int(x), int(y - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                        cv2.putText(result_img, f"{confidence:.3f}", (int(x), int(y - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
                 
                 # Save result image
-                if save_results and result_folder:
+                if save_results and result_img is not None and result_folder:
                     result_img_dir = os.path.join(result_folder, "results")
                     os.makedirs(result_img_dir, exist_ok=True)
                     result_img_path = os.path.join(result_img_dir, os.path.basename(image_path))
                     cv2.imwrite(result_img_path, result_img)
+                    
+                if self.progress_callback:
+                    self.progress_callback(f"{self.status_symbols['face']} RetinaFace found {len(detections)} face(s)")
+            else:
+                if self.progress_callback:
+                    self.progress_callback(f"{self.status_symbols['info']} RetinaFace found no faces above confidence threshold")
                     
         except Exception as e:
             if self.progress_callback:

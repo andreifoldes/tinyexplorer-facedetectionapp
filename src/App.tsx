@@ -386,7 +386,10 @@ const App = () => {
         <div className="App">
             <div className="app-container">
                 <div className="left-panel">
-                    <h2>TinyExplorer FaceDetectionApp</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                        <h2 style={{ margin: 0 }}>TinyExplorer FaceDetectionApp</h2>
+                        <img src="dragon.png" alt="App Logo" style={{ width: '32px', height: '32px' }} />
+                    </div>
                     
                     <div className="control-section">
                         <label>Select File or Folder:</label>
