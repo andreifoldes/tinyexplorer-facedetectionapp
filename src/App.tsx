@@ -147,7 +147,7 @@ const App = () => {
                 setHasProgressMessages(true);
                 break;
         }
-    }, [fetchResults, completedResultsFolder]);
+    }, [fetchResults]);
 
     // Handle Python events
     useEffect(() => {
