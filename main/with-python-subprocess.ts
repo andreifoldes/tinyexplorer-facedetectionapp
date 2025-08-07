@@ -6,7 +6,7 @@ import * as path from "path";
 
 const PY_DIST_FOLDER = "pythondist";
 const PY_FOLDER = "python";
-const PY_MODULE = "subprocess_api"; // New subprocess API module
+const PY_MODULE = "subprocess_api_minimal"; // Minimal subprocess API for testing
 
 const isDev = (process.env.NODE_ENV === "development");
 
@@ -31,9 +31,10 @@ const initializePython = async () => {
         // Packaged mode
         console.log("Running in packaged mode");
         if (fs.existsSync(distPath)) {
-            // Use platform-specific Python executable
+            // Try multiple Python executable names on Windows
             if (process.platform === "win32") {
-                pythonPath = "python.exe";
+                const pythonCandidates = ["python", "python.exe", "python3", "python3.exe"];
+                pythonPath = pythonCandidates[0]; // Start with first candidate
             } else {
                 pythonPath = "python3";
             }
@@ -62,9 +63,12 @@ const initializePython = async () => {
     }
     
     console.log("Starting Python subprocess:", pythonPath, scriptPath);
+    console.log("Working directory:", process.cwd());
+    console.log("__dirname:", __dirname);
     
     pyProc = crossSpawn(pythonPath, [scriptPath], {
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: path.dirname(scriptPath) // Set working directory to script location
     });
     
     if (!pyProc) {
@@ -104,11 +108,15 @@ const initializePython = async () => {
     
     pyProc.on('error', (error: Error) => {
         console.error('Python subprocess error:', error);
+        dialog.showErrorBox("Python Error", `Failed to start Python: ${error.message}`);
         pythonReady = false;
     });
     
     pyProc.on('close', (code: number) => {
         console.log(`Python subprocess exited with code ${code}`);
+        if (code !== 0) {
+            dialog.showErrorBox("Python Exit Error", `Python process exited with code ${code}`);
+        }
         pythonReady = false;
         pyProc = null;
     });
