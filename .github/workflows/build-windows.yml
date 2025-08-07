@@ -44,12 +44,8 @@ jobs:
     - name: Build Electron main process
       run: |
         npx tsc -p tsconfig.electronMain.json
-        # Ensure a 256x256 .ico exists for Windows build. If missing or too small, generate from 256x256 PNG.
-        if (!(Test-Path -Path "resources/icon.ico")) {
-          echo "resources/icon.ico missing; generating from resources/icons/256x256.png"
-          # Use ImageMagick (preinstalled on Windows runners) to convert PNG to ICO
-          magick convert resources/icons/256x256.png -define icon:auto-resize=256,128,64,48,32,16 resources/icon.ico
-        }
+        # Always regenerate a multi-size ICO to ensure >=256x256 is present
+        npx --yes png-to-ico resources/icons/256x256.png > resources/icon.ico
         npx electron-builder --win --publish=never
       env:
         ELECTRON_BUILDER_CACHE: ${{ runner.temp }}\electron-builder-cache
