@@ -15,7 +15,7 @@ const App = () => {
     const [progressMessages, setProgressMessages] = useState<string[]>([]);
     const [hasProgressMessages, setHasProgressMessages] = useState(false);
     const [availableModels, setAvailableModels] = useState<string[]>([]);
-    const [results, setResults] = useState<any[]>([]);
+    const [results, setResults] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-unused-vars
     const [resultsFolder, setResultsFolder] = useState("");
     const [isVideoFile, setIsVideoFile] = useState(false);
     const [pythonReady, setPythonReady] = useState(false);

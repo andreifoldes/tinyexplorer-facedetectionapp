@@ -131,3 +131,4 @@ tests/
 CLAUDE.md
 GEMINI.md
 *.pt
+.claude

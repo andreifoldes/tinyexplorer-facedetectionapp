@@ -38,6 +38,7 @@ jobs:
       run: npx craco build
       env:
         NODE_OPTIONS: "--openssl-legacy-provider"
+        CI: false
 
     - name: Build Electron main process
       run: |
