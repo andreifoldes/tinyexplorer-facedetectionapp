@@ -201,7 +201,7 @@ const sendCommandToPython = (command: any, callback?: Function) => {
 };
 
 // IPC handlers
-ipcMain.on("python-command", (event: Electron.Event, command: any) => {
+ipcMain.on("python-command", (event: any, command: any) => {
     console.log("Received IPC command:", command);
     
     sendCommandToPython(command, (error: any, response: any) => {
@@ -219,7 +219,7 @@ ipcMain.on("python-command", (event: Electron.Event, command: any) => {
     });
 });
 
-ipcMain.on("getPythonStatus", (event: Electron.Event) => {
+ipcMain.on("getPythonStatus", (event: any) => {
     event.sender.send("pythonStatus", {
         ready: pythonReady,
         pid: pyProc ? pyProc.pid : undefined
