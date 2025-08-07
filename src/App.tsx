@@ -15,7 +15,7 @@ const App = () => {
     const [progressMessages, setProgressMessages] = useState<string[]>([]);
     const [hasProgressMessages, setHasProgressMessages] = useState(false);
     const [availableModels, setAvailableModels] = useState<string[]>([]);
-    const [results] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-unused-vars
+    const [results, setResults] = useState<any[]>([]);
     const [resultsFolder, setResultsFolder] = useState("");
     const [isVideoFile, setIsVideoFile] = useState(false);
     const [pythonReady, setPythonReady] = useState(false);
@@ -30,7 +30,7 @@ const App = () => {
 
             const timeout = setTimeout(() => {
                 reject(new Error("Command timeout"));
-            }, 30000); // 30 second timeout
+            }, 120000); // 120 second timeout (2 minutes)
 
             // Listen for response
             const handleResponse = (event: any, data: any) => {
