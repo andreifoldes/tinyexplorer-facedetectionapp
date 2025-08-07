@@ -46,6 +46,7 @@ jobs:
         npx electron-builder --mac --publish=never
       env:
         ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
+        PYTHON: python3
 
     - name: List build artifacts
       run: ls -la dist/ || echo "No dist directory"
