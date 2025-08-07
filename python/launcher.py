@@ -16,7 +16,11 @@ def setup_python_path():
     parent_dir = os.path.dirname(script_dir)
     deps_dir = os.path.join(parent_dir, 'python-deps')
     
-    # Add dependencies directory to Python path if it exists
+    # Sanitize environment to avoid leaking user site-packages or PYTHONPATH
+    os.environ.pop('PYTHONPATH', None)
+    os.environ['PYTHONNOUSERSITE'] = '1'
+
+    # Add dependencies directory to Python path if it exists (prepend)
     if os.path.exists(deps_dir):
         # Add the deps directory itself
         if deps_dir not in sys.path:
@@ -26,7 +30,7 @@ def setup_python_path():
     else:
         print(f"Warning: Bundled dependencies not found at: {deps_dir}", file=sys.stderr)
     
-    # Also add the script directory itself to path
+    # Also add the script directory itself to path (prepend)
     if script_dir not in sys.path:
         sys.path.insert(0, script_dir)
     

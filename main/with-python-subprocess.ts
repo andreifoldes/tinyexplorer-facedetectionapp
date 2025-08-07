@@ -80,9 +80,24 @@ const initializePython = async () => {
     console.log("Working directory:", process.cwd());
     console.log("__dirname:", __dirname);
     
+    // Prepare a sanitized environment for Python to avoid leaking user PYTHONPATH/site-packages
+    const resourcesBase = (__dirname.indexOf("app.asar") > 0)
+        ? process.resourcesPath
+        : path.join(__dirname, "..");
+    const bundledDepsDir = path.join(resourcesBase, PY_DIST_FOLDER, "python-deps");
+    const bundledPyDir = path.join(resourcesBase, PY_DIST_FOLDER, "python");
+
+    const spawnEnv = {
+        ...process.env,
+        // Ensure we don't pick up user's PYTHONPATH or user site-packages
+        PYTHONNOUSERSITE: "1",
+        PYTHONPATH: `${bundledDepsDir}:${bundledPyDir}`,
+    } as NodeJS.ProcessEnv;
+
     pyProc = crossSpawn(pythonPath, [scriptPath], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: path.dirname(scriptPath) // Set working directory to script location
+        cwd: path.dirname(scriptPath), // Set working directory to script location
+        env: spawnEnv,
     });
     
     if (!pyProc) {
@@ -96,19 +111,22 @@ const initializePython = async () => {
     // Handle subprocess output
     if (pyProc.stdout) {
         pyProc.stdout.on('data', (data: Buffer) => {
-            const output = data.toString().trim();
-            console.log('Python stdout:', output);
-            
-            // Parse JSON messages from Python
+            const output = data.toString();
+            // Do not spam logs with entire buffer; handle line-by-line
             const lines = output.split('\n');
             for (const line of lines) {
-                if (line.trim()) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                // Only parse lines that look like JSON; ignore other stdout noise from native libs
+                if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
                     try {
-                        const message = JSON.parse(line);
+                        const message = JSON.parse(trimmed);
                         handlePythonMessage(message);
                     } catch (e) {
-                        console.error('Error parsing Python message:', e, 'Raw:', line);
+                        console.error('Error parsing Python message:', e, 'Raw:', trimmed);
                     }
+                } else {
+                    console.log('Python stdout (non-JSON):', trimmed);
                 }
             }
         });
