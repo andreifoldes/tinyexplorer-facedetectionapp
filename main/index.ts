@@ -43,57 +43,54 @@ function createWindow() {
     }
 
     // Handle folder browsing
-    ipcMain.on("browse-folder", (event: any) => {
-        dialog.showOpenDialog(win, {
+    ipcMain.on("browse-folder", async (event: any) => {
+        const result = await dialog.showOpenDialog(win, {
             properties: ["openDirectory"]
-        }, (filePaths?: string[]) => {
-            if (filePaths && filePaths.length > 0) {
-                event.sender.send("selected-folder", filePaths[0]);
-            } else {
-                event.sender.send("selected-folder", null);
-            }
         });
+        if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+            event.sender.send("selected-folder", result.filePaths[0]);
+        } else {
+            event.sender.send("selected-folder", null);
+        }
     });
 
     // Handle file browsing
-    ipcMain.on("browse-file", (event: any) => {
-        dialog.showOpenDialog(win, {
+    ipcMain.on("browse-file", async (event: any) => {
+        const result = await dialog.showOpenDialog(win, {
             properties: ["openFile"],
             filters: [
                 { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'] },
                 { name: 'Videos', extensions: ['mp4', 'avi', 'mov'] },
                 { name: 'All Files', extensions: ['*'] }
             ]
-        }, (filePaths?: string[]) => {
-            if (filePaths && filePaths.length > 0) {
-                event.sender.send("selected-folder", filePaths[0]);
-            } else {
-                event.sender.send("selected-folder", null);
-            }
         });
+        if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+            event.sender.send("selected-folder", result.filePaths[0]);
+        } else {
+            event.sender.send("selected-folder", null);
+        }
     });
 
     // Handle CSV file saving
-    ipcMain.on("save-csv", (event: any) => {
-        dialog.showSaveDialog(win, {
+    ipcMain.on("save-csv", async (event: any) => {
+        const result = await dialog.showSaveDialog(win, {
             filters: [
                 { name: 'CSV Files', extensions: ['csv'] },
                 { name: 'All Files', extensions: ['*'] }
             ],
             defaultPath: 'face_detection_results.csv'
-        }, (filePath?: string) => {
-            if (filePath) {
-                event.sender.send("selected-save-path", filePath);
-            } else {
-                event.sender.send("selected-save-path", null);
-            }
         });
+        if (!result.canceled && result.filePath) {
+            event.sender.send("selected-save-path", result.filePath);
+        } else {
+            event.sender.send("selected-save-path", null);
+        }
     });
 
     // Handle opening folder in system file manager
     ipcMain.on("open-folder", async (event: any, folderPath: string) => {
         try {
-            const result = shell.openItem(folderPath);
+            const result = await shell.openPath(folderPath);
             if (result) {
                 console.log("Successfully opened folder:", folderPath);
             } else {
