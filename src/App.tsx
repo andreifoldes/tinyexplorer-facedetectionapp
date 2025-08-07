@@ -423,7 +423,7 @@ const App = () => {
         return (
             <div className="loading-container">
                 <div className="loading-message">
-                    Connecting to Python backend...
+                    Starting up face detection engine...
                 </div>
                 <div className="loading-animation">
                     <div className="dot"></div>
