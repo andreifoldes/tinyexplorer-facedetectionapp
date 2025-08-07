@@ -31,7 +31,12 @@ const initializePython = async () => {
         // Packaged mode
         console.log("Running in packaged mode");
         if (fs.existsSync(distPath)) {
-            pythonPath = "python";
+            // Use platform-specific Python executable
+            if (process.platform === "win32") {
+                pythonPath = "python.exe";
+            } else {
+                pythonPath = "python3";
+            }
             scriptPath = distPath;
         } else {
             console.log("Packaged python script not found at:", distPath);
@@ -42,7 +47,12 @@ const initializePython = async () => {
         // Development mode
         console.log("Running in development mode");
         if (fs.existsSync(srcPath)) {
-            pythonPath = "/home/tamas.foldes/miniconda3/envs/electron-python-sample/bin/python";
+            // Use platform-specific development Python path
+            if (process.platform === "win32") {
+                pythonPath = "python"; // Assume Python is in PATH on Windows dev
+            } else {
+                pythonPath = "/home/tamas.foldes/miniconda3/envs/electron-python-sample/bin/python";
+            }
             scriptPath = srcPath;
         } else {
             console.log("Python source not found at:", srcPath);
