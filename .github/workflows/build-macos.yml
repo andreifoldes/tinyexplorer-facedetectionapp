@@ -44,7 +44,8 @@ jobs:
     - name: Build Electron main process
       run: |
         npx tsc -p tsconfig.electronMain.json
-        npx electron-builder --mac --publish=never
+        # Build ZIP only to avoid hdiutil DMG detach issues on macOS runners
+        npx electron-builder --mac zip --publish=never
       env:
         ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
         PYTHON: python3
@@ -57,6 +58,6 @@ jobs:
       with:
         name: macos-build
         path: |
-          dist/*.dmg
-          dist/*.app
+            dist/*.zip
+            dist/*.app
         if-no-files-found: warn
