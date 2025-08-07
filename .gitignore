@@ -135,3 +135,12 @@ GEMINI.md
 test_imgs
 test-results
 artifacts/
+
+# Build artefacts (large binaries)
+artefacts/
+temp-extract/
+squashfs-root/
+*.deb
+*.AppImage
+*.snap
+*.asar
