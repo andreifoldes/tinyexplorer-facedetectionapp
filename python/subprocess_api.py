@@ -9,6 +9,8 @@ import sys
 import os
 import threading
 import time
+import signal
+import atexit
 from calc import calc as real_calc
 from face_detection import FaceDetectionProcessor
 
@@ -28,6 +30,9 @@ class SubprocessAPI:
         # Capture stdout for logging (but we'll use stderr for logs to avoid conflicts)
         self.setup_logging()
         
+        # Setup signal handlers for graceful shutdown
+        self.setup_signal_handlers()
+        
     def setup_logging(self):
         """Setup logging to stderr to avoid conflicts with stdout communication"""
         import logging
@@ -37,6 +42,36 @@ class SubprocessAPI:
             stream=sys.stderr
         )
         self.logger = logging.getLogger(__name__)
+        
+    def setup_signal_handlers(self):
+        """Setup signal handlers for graceful shutdown"""
+        def signal_handler(signum, frame):
+            self.logger.info(f"Received signal {signum}, shutting down gracefully...")
+            self.running = False
+            # Flush any pending output
+            sys.stdout.flush()
+            sys.stderr.flush()
+            
+        # Register signal handlers
+        signal.signal(signal.SIGTERM, signal_handler)
+        signal.signal(signal.SIGINT, signal_handler)
+        if hasattr(signal, 'SIGHUP'):
+            signal.signal(signal.SIGHUP, signal_handler)
+        
+        # Register cleanup on exit
+        atexit.register(self.cleanup)
+    
+    def cleanup(self):
+        """Cleanup resources on exit"""
+        self.logger.info("Cleaning up resources...")
+        if self.face_processor:
+            try:
+                self.face_processor.stop_processing()
+            except:
+                pass
+        # Flush outputs
+        sys.stdout.flush()
+        sys.stderr.flush()
         
     def progress_callback(self, message):
         """Called when processing progress updates"""

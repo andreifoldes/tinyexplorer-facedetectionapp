@@ -40,7 +40,7 @@ jobs:
     - name: Build Electron main process
       run: |
         npx tsc -p tsconfig.electronMain.json
-        npx electron-builder --linux --publish=never
+          npx electron-builder --linux appimage --publish=never
       env:
         ELECTRON_BUILDER_CACHE: /tmp/electron-builder-cache
 
@@ -53,6 +53,4 @@ jobs:
         name: ubuntu-build
         path: |
           dist/*.AppImage
-          dist/*.snap
-          dist/*.deb
         if-no-files-found: warn

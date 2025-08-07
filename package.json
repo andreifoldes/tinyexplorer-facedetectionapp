@@ -69,8 +69,9 @@
         "appId": "com.example.tinyexplorer-facedetectionapp",
         "productName": "TinyExplorer FaceDetectionApp",
         "forceCodeSigning": false,
+
         "directories": {
-            "buildResources": "build",
+            "buildResources": "resources",
             "output": "dist"
         },
         "extraMetadata": {
@@ -79,33 +80,31 @@
         "files": [
             "node_modules/**",
             "buildMain/**",
-            "pythondist/**",
             "build/**"
         ],
-        "extraResources": [],
-        "extraFiles": [],
+        "extraResources": [
+            {
+                "from": "pythondist",
+                "to": "pythondist"
+            }
+        ],
+        "extraFiles": [
+            {
+                "from": "build/appimage",
+                "to": ".",
+                "filter": ["**/*"]
+            }
+        ],
         "linux": {
+            "desktop": {
+                "Name": "TinyExplorer FaceDetectionApp",
+                "Comment": "Face detection using YOLO models",
+                "Keywords": "face;detection;yolo;ai;ml;",
+                "Categories": "Development;Science;Graphics;"
+            },
             "target": [
                 {
                     "target": "AppImage",
-                    "arch": [
-                        "x64"
-                    ]
-                },
-                {
-                    "target": "snap",
-                    "arch": [
-                        "x64"
-                    ]
-                },
-                {
-                    "target": "deb",
-                    "arch": [
-                        "x64"
-                    ]
-                },
-                {
-                    "target": "rpm",
                     "arch": [
                         "x64"
                     ]
@@ -153,6 +152,19 @@
         "nsis": {
             "oneClick": false,
             "allowToChangeInstallationDirectory": true
-        }
+        },
+        "appImage": {
+            "desktop": "build/appimage/tinyexplorer-facedetectionapp.desktop",
+            "category": "Development",
+            "synopsis": "Face detection using YOLO models"
+        },
+        "fileAssociations": [
+            {
+                "ext": "appimage",
+                "name": "AppImage Application",
+                "description": "Portable application",
+                "icon": "graphics/icons/dragon-512.png"
+            }
+        ]
     }
 }

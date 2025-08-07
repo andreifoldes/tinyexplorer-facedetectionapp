@@ -132,3 +132,6 @@ CLAUDE.md
 GEMINI.md
 *.pt
 .claude
+test_imgs
+test-results
+artifacts

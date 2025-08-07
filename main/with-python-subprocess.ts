@@ -6,43 +6,57 @@ import * as path from "path";
 
 const PY_DIST_FOLDER = "pythondist";
 const PY_FOLDER = "python";
-const PY_MODULE = "subprocess_api_minimal"; // Minimal subprocess API for testing
+const PY_MODULE = "subprocess_api"; // Full subprocess API with face detection
+const PY_LAUNCHER = "launcher"; // Launcher script for packaged mode
 
 const isDev = (process.env.NODE_ENV === "development");
 
 let pyProc: childProcess.ChildProcess | null = null;
 let pythonReady = false;
 let commandQueue: Array<{command: any, callback: Function}> = [];
+let isShuttingDown = false;
 
 const initializePython = async () => {
     console.log("Starting Python subprocess...");
     
     const srcPath = path.join(__dirname, "..", PY_FOLDER, PY_MODULE + ".py");
+    const launcherPath = path.join(__dirname, "..", PY_FOLDER, PY_LAUNCHER + ".py");
     const distPath = path.join(__dirname, "..", PY_DIST_FOLDER, "python", PY_MODULE + ".py");
+    const resourcesPath = path.join(process.resourcesPath, PY_DIST_FOLDER, "python", PY_MODULE + ".py");
+    const resourcesLauncherPath = path.join(process.resourcesPath, PY_DIST_FOLDER, "python", PY_LAUNCHER + ".py");
     
     console.log("isDev:", isDev);
     console.log("srcPath:", srcPath);
     console.log("distPath:", distPath);
+    console.log("resourcesPath:", resourcesPath);
+    console.log("resourcesLauncherPath:", resourcesLauncherPath);
     
     let pythonPath: string;
     let scriptPath: string;
     
     if (__dirname.indexOf("app.asar") > 0) {
-        // Packaged mode
+        // Packaged mode - use launcher script to set up Python path
         console.log("Running in packaged mode");
-        if (fs.existsSync(distPath)) {
-            // Try multiple Python executable names on Windows
-            if (process.platform === "win32") {
-                const pythonCandidates = ["python", "python.exe", "python3", "python3.exe"];
-                pythonPath = pythonCandidates[0]; // Start with first candidate
-            } else {
-                pythonPath = "python3";
-            }
-            scriptPath = distPath;
+        
+        // Check if launcher exists, fall back to direct script if not
+        if (fs.existsSync(resourcesLauncherPath)) {
+            scriptPath = resourcesLauncherPath;
+            console.log("Using launcher script for packaged mode");
+        } else if (fs.existsSync(resourcesPath)) {
+            scriptPath = resourcesPath;
+            console.log("Launcher not found, using direct script");
         } else {
-            console.log("Packaged python script not found at:", distPath);
-            dialog.showErrorBox("Error", "Packaged python script not found at: " + distPath);
+            console.log("Packaged python script not found at:", resourcesPath);
+            dialog.showErrorBox("Error", "Packaged python script not found at: " + resourcesPath);
             return;
+        }
+        
+        // Try multiple Python executable names
+        if (process.platform === "win32") {
+            const pythonCandidates = ["python", "python.exe", "python3", "python3.exe"];
+            pythonPath = pythonCandidates[0]; // Start with first candidate
+        } else {
+            pythonPath = "python3";
         }
     } else {
         // Development mode
@@ -112,10 +126,20 @@ const initializePython = async () => {
         pythonReady = false;
     });
     
-    pyProc.on('close', (code: number) => {
+    pyProc.on('close', (code: number | null) => {
         console.log(`Python subprocess exited with code ${code}`);
-        if (code !== 0) {
-            dialog.showErrorBox("Python Exit Error", `Python process exited with code ${code}`);
+        // Only show error dialog if it's an unexpected exit (not during app shutdown)
+        // and the exit code indicates an actual error
+        if (code !== 0 && code !== null && !isShuttingDown) {
+            // Don't show dialog for signal-based terminations (negative codes on Unix)
+            if (code > 0) {
+                console.error(`Python process exited unexpectedly with code ${code}`);
+                // Only show dialog if app is still running
+                if (!(app as any).isQuitting && Electron.BrowserWindow.getAllWindows().length > 0) {
+                    dialog.showErrorBox("Python Process Error", 
+                        `The Python backend stopped unexpectedly (code ${code}). The application may not function correctly.`);
+                }
+            }
         }
         pythonReady = false;
         pyProc = null;
@@ -247,14 +271,22 @@ ipcMain.on("getPythonStatus", (event: any) => {
 const exitPyProc = () => {
     if (pyProc) {
         console.log("Terminating Python subprocess...");
+        isShuttingDown = true;
         
-        // Send exit command first
+        // Send exit command first for graceful shutdown
         sendCommandToPython({ type: 'exit' });
         
-        // Give it a moment to exit gracefully
+        // Give it a moment to exit gracefully, then force kill if necessary
         setTimeout(() => {
             if (pyProc && !pyProc.killed) {
-                pyProc.kill();
+                console.log("Force killing Python subprocess...");
+                pyProc.kill('SIGTERM');
+                // If still not dead after another second, use SIGKILL
+                setTimeout(() => {
+                    if (pyProc && !pyProc.killed) {
+                        pyProc.kill('SIGKILL');
+                    }
+                }, 1000);
             }
         }, 1000);
         
