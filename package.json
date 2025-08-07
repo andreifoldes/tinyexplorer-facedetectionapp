@@ -88,13 +88,6 @@
                 "to": "pythondist"
             }
         ],
-        "extraFiles": [
-            {
-                "from": "build/appimage",
-                "to": ".",
-                "filter": ["**/*"]
-            }
-        ],
         "linux": {
             "desktop": {
                 "Name": "TinyExplorer FaceDetectionApp",
@@ -102,6 +95,15 @@
                 "Keywords": "face;detection;yolo;ai;ml;",
                 "Categories": "Development;Science;Graphics;"
             },
+            "extraFiles": [
+                {
+                    "from": "build/appimage",
+                    "to": ".",
+                    "filter": [
+                        "**/*"
+                    ]
+                }
+            ],
             "target": [
                 {
                     "target": "AppImage",
