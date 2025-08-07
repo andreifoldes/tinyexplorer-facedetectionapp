@@ -55,5 +55,4 @@ jobs:
           dist/*.AppImage
           dist/*.snap
           dist/*.deb
-          dist/*.rpm
         if-no-files-found: warn
