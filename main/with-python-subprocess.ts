@@ -134,7 +134,11 @@ const initializePython = async () => {
     
     if (pyProc.stderr) {
         pyProc.stderr.on('data', (data: Buffer) => {
-            console.error('Python stderr:', data.toString());
+            try {
+                console.warn('Python stderr:', data.toString());
+            } catch (e) {
+                // Ignore EPIPE errors when process is shutting down
+            }
         });
     }
     
@@ -179,11 +183,11 @@ const initializePython = async () => {
 };
 
 const handlePythonMessage = (message: any) => {
-    console.log("Received Python message:", message);
+    try { console.log("Received Python message:", message); } catch (e) {}
     
     if (message.type === 'ready') {
         pythonReady = true;
-        console.log("Python subprocess is ready");
+        try { console.log("Python subprocess is ready"); } catch (e) {}
         
         // Notify all renderer processes that Python is ready
         const allWindows = Electron.BrowserWindow.getAllWindows();
@@ -201,7 +205,7 @@ const handlePythonMessage = (message: any) => {
         }
     } else if (message.type === 'response') {
         // Handle command response
-        console.log("Python command response:", message.response);
+        try { console.log("Python command response:", message.response); } catch (e) {}
         
         // If there's a command ID, call the specific callback
         if (message.id && pendingCommands.has(message.id)) {
@@ -213,14 +217,14 @@ const handlePythonMessage = (message: any) => {
         }
     } else if (message.type === 'event') {
         // Handle Python events (progress, completion, etc.)
-        console.log("Python event:", message.event);
+        try { console.log("Python event:", message.event); } catch (e) {}
         // Forward event to renderer process
         const allWindows = Electron.BrowserWindow.getAllWindows();
         allWindows.forEach(window => {
             window.webContents.send('python-event', message.event);
         });
     } else if (message.type === 'error') {
-        console.error("Python error:", message.message);
+        try { console.error("Python error:", message.message); } catch (e) {}
     }
 };
 
@@ -230,7 +234,7 @@ const pendingCommands = new Map<number, Function>();
 
 const sendCommandToPython = (command: any, callback?: Function) => {
     if (!pyProc || !pythonReady) {
-        console.log("Python not ready, queuing command:", command);
+        try { console.log("Python not ready, queuing command:", command); } catch (e) {}
         if (callback) {
             commandQueue.push({ command, callback });
         }
@@ -246,7 +250,7 @@ const sendCommandToPython = (command: any, callback?: Function) => {
         if (pyProc.stdin) {
             pyProc.stdin.write(commandJson);
         }
-        console.log("Sent command to Python:", commandWithId);
+        try { console.log("Sent command to Python:", commandWithId); } catch (e) {}
         
         if (callback) {
             // Store callback to be called when response arrives
@@ -262,7 +266,7 @@ const sendCommandToPython = (command: any, callback?: Function) => {
 
 // IPC handlers
 ipcMain.on("python-command", (event: any, command: any) => {
-    console.log("Received IPC command:", command);
+    try { console.log("Received IPC command:", command); } catch (e) {}
     
     sendCommandToPython(command, (error: any, response: any) => {
         if (error) {

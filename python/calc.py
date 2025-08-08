@@ -96,7 +96,9 @@ def calc(s):
             a = numStk.pop()
             numStk.append(getBin(op, a, b))
 
-    return numStk.pop()
+    if len(numStk) > 0:
+        return numStk.pop()
+    return 0  # Return 0 for invalid/empty expressions
     
 
 if __name__ == '__main__':

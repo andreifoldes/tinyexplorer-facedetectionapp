@@ -85,7 +85,25 @@
         "extraResources": [
             {
                 "from": "pythondist",
-                "to": "pythondist"
+                "to": "pythondist",
+                "filter": [
+                    "**/*",
+                    "!**/__pycache__/**",
+                    "!**/*.pyc",
+                    "!**/*.pyo",
+                    "!**/*.pyd",
+                    "!**/*.whl",
+                    "!**/*.egg-info/**",
+                    "!**/*.dist-info/**",
+                    "!**/tests/**",
+                    "!**/test/**",
+                    "!**/docs/**",
+                    "!**/doc/**",
+                    "!**/include/**",
+                    "!**/*.h",
+                    "!**/*.hpp",
+                    "!**/*.hh"
+                ]
             }
         ],
         "linux": {
@@ -167,6 +185,8 @@
                 "description": "Portable application",
                 "icon": "graphics/icons/dragon-512.png"
             }
-        ]
+        ],
+        "asar": true,
+        "extends": null
     }
 }

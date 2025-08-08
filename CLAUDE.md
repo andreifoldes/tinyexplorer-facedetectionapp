@@ -12,20 +12,22 @@ This is an Electron application that integrates Python Flask backend with a Reac
 ## Key Architecture Components
 
 ### Electron Main Process (`main/`)
-- `main/index.ts`: Main Electron process that creates the window and handles IPC communication
-- `main/with-python.ts`: Critical component that manages Python process lifecycle, spawning Flask server with authentication tokens and handling process cleanup
+- `main/index.ts`: Main Electron process that creates the window, handles IPC communication, manages tray functionality, and implements file/folder dialogs
+- `main/with-python-subprocess.ts`: Critical component that manages Python subprocess lifecycle using stdin/stdout JSON communication, handles cross-platform Python execution, and manages graceful shutdown
 
 ### Python Backend (`python/`)
-- `python/api.py`: Flask server with GraphQL endpoints and WebSocket support (Flask-SocketIO)
-- `python/launch.py`: Launcher script that sets up bundled dependencies for packaged builds
-- `python/face_recognition.py`: YOLO-based face detection processor with real-time progress events
-- Python server uses signing keys for authentication between Electron and Flask
-- WebSocket events: `start_recognition`, `stop_recognition`, `get_status`, `face_recognition_event`
+- `python/subprocess_api.py`: Main subprocess API that handles JSON commands via stdin/stdout communication
+- `python/launcher.py`: Launcher script that sets up bundled dependencies for packaged builds
+- `python/face_detection.py`: Advanced face detection processor supporting both YOLO and RetinaFace models with real-time progress callbacks
+- `python/calc.py`: Simple calculator module for testing subprocess communication
+- Communication via JSON messages over stdin/stdout (no HTTP server required)
+- Commands: `get_models`, `load_model`, `start_processing`, `stop_processing`, `get_results`, `export_csv`
 
 ### React Frontend (`src/`)
-- `src/App.tsx`: Main React component with Apollo GraphQL client and WebSocket client (socket.io-client)
-- Hybrid communication: WebSocket for real-time updates, GraphQL as fallback
-- Handles face recognition UI, model selection, and real-time progress tracking
+- `src/App.tsx`: Main React component that communicates with Python subprocess via Electron IPC
+- Direct IPC communication: No HTTP/WebSocket overhead, all communication through Electron's IPC system
+- Features: File/folder selection, model selection, confidence threshold adjustment, real-time progress tracking
+- Supports both single file and batch folder processing, handles image and video files
 
 ## Development Commands
 
@@ -47,10 +49,28 @@ npm run test:gui:headed
 npm run watch
 
 # Individual component builds
-npm run python-build     # Bundle Python dependencies
-npm run react-build      # Build React app  
-npm run main-build       # Compile TypeScript and create Electron package
+npm run python-build        # Bundle Python dependencies
+npm run python-build-minimal # Copy Python files without bundling dependencies
+npm run react-build         # Build React app  
+npm run main-build          # Compile TypeScript and create Electron package
+
+# TypeScript watching
+npm run main-watch          # Watch and compile Electron main process
+npm run react-watch         # Watch React TypeScript compilation
 ```
+
+## Testing and Validation Workflow
+
+After each modification to the codebase:
+
+1. **Rebuild the application**: `npm run build`
+2. **Test the macOS x64 application**: The built app is located at `dist/mac/TinyExplorer FaceDetectionApp.app`
+3. **Verify core functionality**: 
+   - Launch the packaged app
+   - Test file/folder selection
+   - Verify Python subprocess communication
+   - Run face detection on sample images
+   - Confirm results export functionality
 
 ## Python Environment Setup
 
@@ -94,36 +114,45 @@ This allows GUI testing and Electron development over SSH connections with X11 f
 ## Testing
 
 - Uses Playwright for GUI testing with custom configuration
-- Test files in `tests/` directory test both browser and Electron modes
+- Test files in `tests/` directory (`gui-components.spec.js`, `served-gui-test.spec.js`, `mcp-debug-test.spec.js`)
 - `npm run test:gui` for headless testing, `npm run test:gui:headed` for headed mode
-- Tests include app loading, UI components, network requests, and GraphQL initialization
+- Tests include app loading, UI components, Python subprocess communication, and face detection functionality
+- Additional Python standalone tests: `test_subprocess.py`, `test_both_models.py`, `test_compatibility.py`
+- Playwright config automatically detects X11 forwarding for remote development
 
 ## Communication Architecture
 
-### Real-time Communication
-- **WebSocket (Primary)**: Bidirectional real-time communication for face recognition events
-- **Server-Sent Events (Fallback)**: Unidirectional real-time updates
-- **GraphQL (Fallback)**: HTTP-based queries for compatibility
+### IPC-based Communication (No HTTP Server)
+- **Electron IPC**: Primary communication between React frontend and Electron main process
+- **Subprocess stdin/stdout**: JSON message communication between Electron and Python subprocess
+- **Real-time Events**: Python sends progress events via stdout, forwarded to React via IPC
+- No authentication required - communication is process-local and secure by design
 
-### Authentication Flow
-- Electron main process generates random signing keys (development uses "devkey")
-- All communication (GraphQL, WebSocket) requires valid signing key
-- Python server validates signing keys before processing requests
+### Subprocess Command Flow
+1. React sends commands to main process via `ipcRenderer.send("python-command", command)`
+2. Main process forwards commands to Python subprocess via stdin JSON
+3. Python subprocess processes commands and sends responses via stdout JSON
+4. Main process forwards responses back to React via `ipcRenderer.on("python-response")`
+5. Progress events are emitted separately via `ipcRenderer.on("python-event")`
 
 ### Face Recognition Pipeline
-1. User selects files/folders through Electron file dialogs
-2. WebSocket sends `start_recognition` event to Python backend
-3. Python processes images/videos with YOLO models
-4. Real-time progress events sent via WebSocket (`face_recognition_event`)
-5. UI updates progress bar and shows live results
-6. Completion events trigger final results display
+1. User selects files/folders through Electron file dialogs (`browse-folder`, `browse-file` IPC)
+2. User selects results output folder
+3. IPC sends `start_processing` command to Python subprocess with parameters
+4. Python processes images/videos with selected model (YOLO or RetinaFace)
+5. Real-time progress events sent via stdout, forwarded to React via `python-event` IPC
+6. UI updates progress bar and displays real-time progress messages
+7. Completion events trigger final results display and enable "Open Results Folder" button
 
 ## Important Implementation Details
 
-- Python process lifecycle managed by `main/with-python.ts` with different handling for packaged vs. unpackaged scenarios
+- Python process lifecycle managed by `main/with-python-subprocess.ts` with different handling for packaged vs. unpackaged scenarios
 - Uses `__dirname.indexOf("app.asar")` to detect if running from packaged app
-- Python server exits gracefully via GraphQL endpoint when Electron shuts down
-- Face recognition supports multiple YOLO models with configurable confidence thresholds
-- WebSocket connection includes automatic fallback to GraphQL for reliability
-- Progress events are throttled to prevent UI overwhelming during batch processing
+- Python subprocess exits gracefully via `exit` command when Electron shuts down
+- Face recognition supports multiple YOLO models (yolov8n-face, yolov8l-face, etc.) and RetinaFace with configurable confidence thresholds
+- Models are automatically downloaded from GitHub releases on first use if not found locally
+- Progress events include emoji symbols for better UX (🖼️ for images, 🎬 for videos, ✅ for success, etc.)
 - Python bundling script creates optimized distribution with essential packages only
+- Cross-platform Python executable detection (handles different Python binary names)
+- Tray functionality with show/hide/quit options
+- System file manager integration for opening results folders

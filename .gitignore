@@ -144,3 +144,9 @@ squashfs-root/
 *.AppImage
 *.snap
 *.asar
+
+# macOS application bundles
+*.app/
+
+# macOS disk images
+*.dmg

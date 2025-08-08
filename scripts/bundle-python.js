@@ -17,45 +17,23 @@ if (fs.existsSync(pythonDistDir)) {
 // Create distribution directory
 fs.mkdirSync(pythonDistDir, { recursive: true });
 
-// Copy Python source files
+// Copy Python source files to python subdirectory
 console.log('Copying Python source files...');
-execSync(`cp -r python/ ${pythonDistDir}/`);
+const pythonSubDir = path.join(pythonDistDir, 'python');
+fs.mkdirSync(pythonSubDir, { recursive: true });
+execSync(`cp -r python/ ${pythonSubDir}/`);
 
 // Install dependencies to a local directory
 console.log('Installing Python dependencies...');
 const depsDir = path.join(pythonDistDir, 'python-deps');
 fs.mkdirSync(depsDir, { recursive: true });
 
-// Install ALL packages needed for face detection (single transaction to avoid conflicts)
-// Pin numpy to a version compatible with tensorflow 2.19 (<2.2.0) to avoid resolver conflicts
-// Keep TensorFlow CPU default (tensorflow is CPU-only by default; GPU is an extra),
-// and pin PyTorch CPU-only wheels to avoid NVIDIA deps.
-const essentialPackages = [
-    'tensorflow==2.19.0',
-    // TensorFlow 2.19 requires tf-keras to be installed separately
-    'tf-keras',
-    'numpy==1.26.4',
-    'opencv-python-headless',
-    'pillow==10.3.0',
-    'torch==2.5.0',
-    'torchvision==0.20.0',
-    'ultralytics',
-    'retina-face==0.0.17',
-    'flask',
-    'flask-cors',
-    'flask-graphql',
-    'flask-socketio',
-    'graphene'
-];
-
-// Create a requirements file for the essential packages
-const essentialRequirements = essentialPackages.join('\n');
-const requirementsPath = path.join(pythonDistDir, 'requirements-essential.txt');
-fs.writeFileSync(requirementsPath, essentialRequirements);
+// Use the existing requirements.txt file which has more flexible version requirements
+const requirementsPath = path.join(pythonDistDir, 'python', 'requirements.txt');
 
 try {
-    console.log('Installing all Python packages (CPU-only Torch) in a single operation...');
-    const installCmd = `python3 -m pip install --target "${depsDir}" --upgrade-strategy only-if-needed --no-cache-dir --index-url https://pypi.org/simple --extra-index-url https://download.pytorch.org/whl/cpu -r "${requirementsPath}"`;
+    console.log('Installing Python packages from requirements.txt...');
+    const installCmd = `python3 -m pip install --target "${depsDir}" --no-cache-dir -r "${requirementsPath}"`;
     execSync(installCmd, { stdio: 'inherit', env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' } });
 } catch (error) {
     console.error('Failed to install Python dependencies.');

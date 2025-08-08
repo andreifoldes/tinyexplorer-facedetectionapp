@@ -145,20 +145,20 @@ class FaceDetectionProcessor:
                 self.model_type = "YOLO"
                 self.current_model_path = model_path
                 
-                # Resolve model path to writable directory if necessary
-                resolved_model_path = model_path
+                # Always use writable directory for model storage
                 if not os.path.isabs(model_path):
-                    # Prefer model from our writable directory if present
+                    # Check if model exists in our writable directory
                     candidate_path = os.path.join(self._get_model_dir(), os.path.basename(model_path))
-                    if os.path.exists(candidate_path):
-                        resolved_model_path = candidate_path
+                    resolved_model_path = candidate_path
+                else:
+                    resolved_model_path = model_path
                 
-                # Check if model file exists locally, otherwise try to download into writable dir
+                # Check if model file exists locally, otherwise download it
                 if not os.path.exists(resolved_model_path):
                     if self.progress_callback:
-                        self.progress_callback(f"{self.status_symbols['info']} Model {resolved_model_path} not found locally")
+                        self.progress_callback(f"{self.status_symbols['info']} Model {os.path.basename(model_path)} not found - downloading...")
                     
-                    # Try to download face-specific models from GitHub
+                    # Download face-specific models from GitHub
                     if "-face.pt" in model_path.lower():
                         if not self._download_face_model(model_path):
                             if self.progress_callback:
@@ -169,9 +169,33 @@ class FaceDetectionProcessor:
                     else:
                         if self.progress_callback:
                             self.progress_callback(f"{self.status_symbols['info']} Standard YOLO model will be downloaded automatically...")
+                else:
+                    if self.progress_callback:
+                        self.progress_callback(f"{self.status_symbols['success']} Found existing model: {os.path.basename(resolved_model_path)}")
                 
                 # YOLO automatically downloads standard models if they don't exist
-                self.model = YOLO(resolved_model_path).to('cuda:0' if torch.cuda.is_available() else 'cpu')
+                # Use MPS for Apple Silicon Macs, CPU otherwise (avoid CUDA issues)
+                if torch.backends.mps.is_available():
+                    device = 'mps'
+                elif torch.cuda.is_available():
+                    device = 'cuda:0'
+                else:
+                    device = 'cpu'
+                
+                if self.progress_callback:
+                    self.progress_callback(f"{self.status_symbols['processing']} Loading YOLO model: {resolved_model_path}")
+                
+                # Load YOLO model (removed signal timeout as it doesn't work in subprocess)
+                self.model = YOLO(resolved_model_path)
+                # Move to device in a separate try-catch to handle device issues
+                try:
+                    self.model = self.model.to(device)
+                    if self.progress_callback:
+                        self.progress_callback(f"{self.status_symbols['info']} Using device: {device}")
+                except Exception as device_error:
+                    if self.progress_callback:
+                        self.progress_callback(f"{self.status_symbols['warning']} Device {device} failed, falling back to CPU: {str(device_error)}")
+                    self.model = self.model.to('cpu')
                 if self.progress_callback:
                     self.progress_callback(f"{self.status_symbols['success']} YOLO model loaded successfully: {resolved_model_path}")
                 return True
