@@ -19,20 +19,28 @@ def setup_python_path():
     # Sanitize environment to avoid leaking user site-packages or PYTHONPATH
     os.environ.pop('PYTHONPATH', None)
     os.environ['PYTHONNOUSERSITE'] = '1'
-
-    # Add dependencies directory to Python path if it exists (prepend)
+    
+    # Clear existing sys.path to avoid conflicts and add only what we need
+    original_path = sys.path[:]
+    sys.path.clear()
+    
+    # Add script directory first
+    sys.path.append(script_dir)
+    
+    # Add dependencies directory if it exists
     if os.path.exists(deps_dir):
-        # Add the deps directory itself
-        if deps_dir not in sys.path:
-            sys.path.insert(0, deps_dir)
-        
+        sys.path.append(deps_dir)
         print(f"Added bundled dependencies from: {deps_dir}", file=sys.stderr)
     else:
         print(f"Warning: Bundled dependencies not found at: {deps_dir}", file=sys.stderr)
     
-    # Also add the script directory itself to path (prepend)
-    if script_dir not in sys.path:
-        sys.path.insert(0, script_dir)
+    # Add essential Python paths back (excluding user site-packages)
+    for path in original_path:
+        if (path and 
+            not path.endswith('site-packages') and 
+            not 'site-packages' in path and
+            path not in sys.path):
+            sys.path.append(path)
     
     # Log Python path for debugging
     print(f"Python path setup complete. Script dir: {script_dir}", file=sys.stderr)
@@ -44,6 +52,10 @@ def main():
     try:
         # Setup Python path for bundled dependencies
         setup_python_path()
+        
+        # Change working directory to avoid import conflicts with source directories
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(script_dir)
         
         # Now import and run the subprocess API
         # Import here after path is set up

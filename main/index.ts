@@ -58,7 +58,7 @@ function createTray() {
     // Using path.join for cross-platform compatibility
     let iconPath = isDev 
         ? path.join(__dirname, '..', 'resources', 'icons', '256x256.png')
-        : path.join(process.resourcesPath, 'app', 'resources', 'icons', '256x256.png');
+        : path.join(process.resourcesPath, 'resources', 'icons', '256x256.png');
     
     // Fallback to alternative icon locations if primary doesn't exist
     const fs = require('fs');

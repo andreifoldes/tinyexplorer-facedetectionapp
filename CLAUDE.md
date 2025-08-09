@@ -17,7 +17,8 @@ This is an Electron application that integrates Python Flask backend with a Reac
 
 ### Python Backend (`python/`)
 - `python/subprocess_api.py`: Main subprocess API that handles JSON commands via stdin/stdout communication
-- `python/launcher.py`: Launcher script that sets up bundled dependencies for packaged builds
+- `python/launcher.py`: Launcher script that sets up bundled dependencies for packaged builds (legacy single-environment)
+- `python/multi_env_launcher.py`: **Multi-environment launcher that dynamically switches between YOLO and RetinaFace environments**
 - `python/face_detection.py`: Advanced face detection processor supporting both YOLO and RetinaFace models with real-time progress callbacks
 - `python/calc.py`: Simple calculator module for testing subprocess communication
 - Communication via JSON messages over stdin/stdout (no HTTP server required)
@@ -74,18 +75,42 @@ After each modification to the codebase:
 
 ## Python Environment Setup
 
-The project requires conda environment setup:
+The project uses a **dual environment architecture** to handle conflicting dependencies between YOLO and RetinaFace models:
 
+### Development Environment (Single Environment)
 ```bash
 conda env create -f environment.yml
 conda activate electron-python-sample
 ```
 
-Key Python dependencies include:
-- Flask + Flask-CORS + Flask-SocketIO for web server
-- GraphQL (graphene, flask-graphql) for API
-- Computer vision (opencv-python, ultralytics, torch)
-- Face detection models (YOLO variants, RetinaFace)
+### Packaged Application (Dual Environment)
+The packaged application uses two separate Python environments to avoid dependency conflicts:
+
+#### YOLO Environment (`pythondist/yolo-env/`)
+- **Purpose**: Handles YOLO-based face detection models
+- **Key Dependencies**: ultralytics, torch, torchvision, opencv-python
+- **Models Supported**: yolov8n-face.pt, yolov8m-face.pt, yolov8l-face.pt, yolov11m-face.pt, yolov11l-face.pt, yolov12l-face.pt
+- **Python Version**: 3.10 (for optimal PyTorch compatibility)
+
+#### RetinaFace Environment (`pythondist/retinaface-env/`)
+- **Purpose**: Handles RetinaFace model processing  
+- **Key Dependencies**: tensorflow, tf-keras, retina-face, opencv-python, pillow
+- **Models Supported**: RetinaFace (pre-trained model)
+- **Python Version**: 3.10 (for TensorFlow 2.19+ compatibility)
+
+### Environment Switching Mechanism
+- **Launcher**: `python/multi_env_launcher.py` detects model type via `MODEL_TYPE` environment variable
+- **Detection Logic**: 
+  - `MODEL_TYPE=yolo` → loads YOLO environment with PyTorch dependencies
+  - `MODEL_TYPE=retinaface` → loads RetinaFace environment with TensorFlow dependencies
+- **Dynamic Switching**: Electron main process restarts Python subprocess when switching between YOLO and RetinaFace models
+- **Isolation**: Each environment has completely isolated dependencies to prevent version conflicts
+
+### Why Dual Environments?
+- **TensorFlow vs PyTorch**: RetinaFace requires TensorFlow while YOLO models use PyTorch
+- **Python Version Requirements**: TensorFlow 2.19+ requires Python 3.10, conflicting with some PyTorch installations
+- **Dependency Conflicts**: numpy, pillow, and OpenCV versions often conflict between ML frameworks
+- **Package Size**: Bundling both frameworks in one environment creates unnecessarily large distributions
 
 ## Remote Display Configuration
 
@@ -106,10 +131,14 @@ This allows GUI testing and Electron development over SSH connections with X11 f
 
 ## Build Process and Packaging
 
-1. `npm run python-build` - Bundles Python dependencies into `pythondist/` using `scripts/bundle-python.js`
+1. `npm run python-build` - Bundles Python dependencies into dual environments:
+   - Creates `pythondist/yolo-env/` with PyTorch-based YOLO dependencies
+   - Creates `pythondist/retinaface-env/` with TensorFlow-based RetinaFace dependencies
+   - Copies Python source files to `pythondist/python/` including `multi_env_launcher.py`
+   - Script: `scripts/bundle-python.js`
 2. `npm run react-build` - Builds React app with legacy OpenSSL support
 3. `npm run main-build` - Compiles TypeScript and creates Electron package
-4. Python bundling creates essential package subset to reduce distribution size
+4. Python bundling creates optimized environment subsets to reduce distribution size while maintaining dependency isolation
 
 ## Testing
 
@@ -146,13 +175,30 @@ This allows GUI testing and Electron development over SSH connections with X11 f
 
 ## Important Implementation Details
 
+### Python Process Management
 - Python process lifecycle managed by `main/with-python-subprocess.ts` with different handling for packaged vs. unpackaged scenarios
 - Uses `__dirname.indexOf("app.asar")` to detect if running from packaged app
+- **Multi-environment support**: Automatically detects and switches between YOLO and RetinaFace environments based on model selection
 - Python subprocess exits gracefully via `exit` command when Electron shuts down
+- Environment switching triggers subprocess restart with appropriate `MODEL_TYPE` environment variable
+
+### Model Support and Processing
 - Face recognition supports multiple YOLO models (yolov8n-face, yolov8l-face, etc.) and RetinaFace with configurable confidence thresholds
+- **YOLO Models**: Confidence typically 0.5-0.7, optimized for speed and general face detection
+- **RetinaFace**: Confidence 0.9, optimized for accuracy and works better with challenging lighting/angles
 - Models are automatically downloaded from GitHub releases on first use if not found locally
+- **Environment-specific model loading**: YOLO models load in PyTorch environment, RetinaFace loads in TensorFlow environment
+
+### User Experience Features
 - Progress events include emoji symbols for better UX (🖼️ for images, 🎬 for videos, ✅ for success, etc.)
-- Python bundling script creates optimized distribution with essential packages only
+- **Automatic model optimization**: App intelligently suggests better face models based on processing requirements
+- Real-time environment switching feedback via console messages
 - Cross-platform Python executable detection (handles different Python binary names)
 - Tray functionality with show/hide/quit options
 - System file manager integration for opening results folders
+
+### Technical Architecture
+- Python bundling script creates optimized distribution with essential packages only, separated by environment
+- **Dependency isolation**: Complete separation of PyTorch and TensorFlow dependencies prevents version conflicts
+- **Graceful fallback**: If environment switching fails, app maintains functionality with current environment
+- **Memory efficiency**: Only loads required dependencies for the selected model type

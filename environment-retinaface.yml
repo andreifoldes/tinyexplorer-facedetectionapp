@@ -1,0 +1,19 @@
+name: electron-python-retinaface
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - retina-face>=0.0.14
+      - tf-keras
+      - tensorflow
+      - opencv-python
+      - pillow
+      - numpy
+      - flask
+      - flask-cors
+      - flask-graphql
+      - flask-socketio
+      - graphene

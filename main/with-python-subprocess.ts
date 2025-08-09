@@ -15,9 +15,40 @@ let pyProc: childProcess.ChildProcess | null = null;
 let pythonReady = false;
 let commandQueue: Array<{command: any, callback: Function}> = [];
 let isShuttingDown = false;
+let currentModelType = 'retinaface'; // Track current environment
+
+const detectModelType = (command: any): string => {
+    // Check if this is a processing command with model selection
+    if (command && command.type === 'start_processing' && command.data && command.data.model) {
+        const model = command.data.model.toLowerCase();
+        return model.includes('retinaface') ? 'retinaface' : 'yolo';
+    }
+    return currentModelType; // Keep current type if not specified
+};
+
+const restartPythonIfNeeded = async (requiredModelType: string): Promise<boolean> => {
+    if (requiredModelType === currentModelType && pythonReady) {
+        return false; // No restart needed
+    }
+    
+    // Need to restart with different environment
+    try { console.log(`Switching from ${currentModelType} to ${requiredModelType} environment`); } catch (e) {}
+    
+    // Stop current process
+    if (pyProc && !isShuttingDown) {
+        exitPyProc();
+        // Wait a bit for cleanup
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    // Update model type and restart
+    currentModelType = requiredModelType;
+    await initializePython();
+    return true;
+};
 
 const initializePython = async () => {
-    console.log("Starting Python subprocess...");
+    try { console.log("Starting Python subprocess..."); } catch (e) {}
     
     const srcPath = path.join(__dirname, "..", PY_FOLDER, PY_MODULE + ".py");
     const launcherPath = path.join(__dirname, "..", PY_FOLDER, PY_LAUNCHER + ".py");
@@ -25,60 +56,169 @@ const initializePython = async () => {
     const resourcesPath = path.join(process.resourcesPath, PY_DIST_FOLDER, "python", PY_MODULE + ".py");
     const resourcesLauncherPath = path.join(process.resourcesPath, PY_DIST_FOLDER, "python", PY_LAUNCHER + ".py");
     
-    console.log("isDev:", isDev);
-    console.log("srcPath:", srcPath);
-    console.log("distPath:", distPath);
-    console.log("resourcesPath:", resourcesPath);
-    console.log("resourcesLauncherPath:", resourcesLauncherPath);
+    try { console.log("isDev:", isDev); } catch (e) {}
+    try { console.log("srcPath:", srcPath); } catch (e) {}
+    try { console.log("distPath:", distPath); } catch (e) {}
+    try { console.log("resourcesPath:", resourcesPath); } catch (e) {}
+    try { console.log("resourcesLauncherPath:", resourcesLauncherPath); } catch (e) {}
     
-    let pythonPath: string;
-    let scriptPath: string;
+    let pythonPath: string = "";
+    let scriptPath: string = "";
     
     if (__dirname.indexOf("app.asar") > 0) {
-        // Packaged mode - use launcher script to set up Python path
-        console.log("Running in packaged mode");
+        // Packaged mode - use virtual environment Python directly for better isolation
+        try { console.log("Running in packaged mode"); } catch (e) {}
         
-        // Check if launcher exists, fall back to direct script if not
-        if (fs.existsSync(resourcesLauncherPath)) {
-            scriptPath = resourcesLauncherPath;
-            console.log("Using launcher script for packaged mode");
-        } else if (fs.existsSync(resourcesPath)) {
-            scriptPath = resourcesPath;
-            console.log("Launcher not found, using direct script");
-        } else {
-            console.log("Packaged python script not found at:", resourcesPath);
-            dialog.showErrorBox("Error", "Packaged python script not found at: " + resourcesPath);
-            return;
-        }
+        const resourcesBase = process.resourcesPath;
+        const yoloVenvPython = path.join(resourcesBase, PY_DIST_FOLDER, "yolo-env", "bin", "python");
+        const retinafaceVenvPython = path.join(resourcesBase, PY_DIST_FOLDER, "retinaface-env", "bin", "python");
+        const subprocessScriptPath = path.join(resourcesBase, PY_DIST_FOLDER, "python", "subprocess_api.py");
         
-        // Try multiple Python executable names
-        if (process.platform === "win32") {
-            const pythonCandidates = ["python", "python.exe", "python3", "python3.exe"];
-            pythonPath = pythonCandidates[0]; // Start with first candidate
+        // Choose Python executable based on model type - use venv directly
+        if (currentModelType === 'retinaface' && fs.existsSync(retinafaceVenvPython)) {
+            pythonPath = retinafaceVenvPython;
+            scriptPath = subprocessScriptPath;
+            try { console.log(`Using RetinaFace venv Python directly: ${pythonPath}`); } catch (e) {}
+        } else if (currentModelType === 'yolo' && fs.existsSync(yoloVenvPython)) {
+            pythonPath = yoloVenvPython;
+            scriptPath = subprocessScriptPath;
+            try { console.log(`Using YOLO venv Python directly: ${pythonPath}`); } catch (e) {}
         } else {
-            pythonPath = "python3";
+            // Fallback to multi-environment launcher if venv not available
+            const multiEnvLauncherPath = path.join(resourcesBase, PY_DIST_FOLDER, "python", "multi_env_launcher.py");
+            
+            if (fs.existsSync(multiEnvLauncherPath)) {
+                scriptPath = multiEnvLauncherPath;
+                try { console.log("Fallback to multi-environment launcher"); } catch (e) {}
+                
+                // Find system Python for fallback
+                const pythonCandidates = process.platform === "win32" 
+                    ? ["python", "python.exe", "python3", "python3.exe", "python3.10", "python3.11", "python3.12", "python3.13"]
+                    : ["python3", "python", "python3.13", "python3.12", "python3.11", "python3.10", "/usr/bin/python3", "/usr/local/bin/python3", "/opt/homebrew/bin/python3"];
+                
+                let foundPython = false;
+                for (const candidate of pythonCandidates) {
+                    try {
+                        const { execSync } = require('child_process');
+                        execSync(`${candidate} --version`, { stdio: 'ignore' });
+                        pythonPath = candidate;
+                        foundPython = true;
+                        try { console.log(`Found system Python executable: ${pythonPath}`); } catch (e) {}
+                        break;
+                    } catch (e) {
+                        // This candidate didn't work, try the next one
+                    }
+                }
+                
+                if (!foundPython) {
+                    try { console.error("No system Python executable found for fallback!"); } catch (e) {}
+                    dialog.showErrorBox("Python Not Found", "Could not find Python executable. Please install Python 3.10 or later.");
+                    return;
+                }
+            } else {
+                try { console.log("Neither venv Python nor launcher found"); } catch (e) {}
+                dialog.showErrorBox("Error", "Python environment not properly packaged");
+                return;
+            }
         }
     } else {
-        // Development mode
-        console.log("Running in development mode");
+        // Development mode - support dual environment switching
+        try { console.log("Running in development mode"); } catch (e) {}
         if (fs.existsSync(srcPath)) {
-            // Use platform-specific development Python path
-            if (process.platform === "win32") {
-                pythonPath = "python"; // Assume Python is in PATH on Windows dev
+            // Check for virtual environments in project directory first (most specific)
+            const projectDir = path.join(__dirname, "..");
+            const yoloVenvPath = path.join(projectDir, "yolo-env", "bin", "python");
+            const retinaVenvPath = path.join(projectDir, "retinaface-env", "bin", "python");
+            
+            // Check for conda environments in common locations
+            const possibleCondaPaths = [
+                // macOS
+                `${process.env.HOME}/miniconda3/envs`,
+                `${process.env.HOME}/anaconda3/envs`,
+                `/opt/homebrew/anaconda3/envs`,
+                `/opt/homebrew/miniconda3/envs`,
+                // Linux
+                `/home/${process.env.USER}/miniconda3/envs`,
+                `/home/${process.env.USER}/anaconda3/envs`,
+                // Windows
+                `${process.env.USERPROFILE}\\miniconda3\\envs`,
+                `${process.env.USERPROFILE}\\anaconda3\\envs`,
+            ].filter(Boolean); // Remove any undefined paths
+            
+            // First try project-local virtual environments
+            if (currentModelType === 'retinaface' && fs.existsSync(retinaVenvPath)) {
+                pythonPath = retinaVenvPath;
+                try { console.log(`Using project RetinaFace virtual environment: ${pythonPath}`); } catch (e) {}
+            } else if (currentModelType === 'yolo' && fs.existsSync(yoloVenvPath)) {
+                pythonPath = yoloVenvPath;
+                try { console.log(`Using project YOLO virtual environment: ${pythonPath}`); } catch (e) {}
             } else {
-                pythonPath = "/home/tamas.foldes/miniconda3/envs/electron-python-sample/bin/python";
+                // Fallback to conda environments
+                let condaBasePath: string | null = null;
+                for (const testPath of possibleCondaPaths) {
+                    if (fs.existsSync(testPath)) {
+                        condaBasePath = testPath;
+                        try { console.log(`Found conda environments at: ${condaBasePath}`); } catch (e) {}
+                        break;
+                    }
+                }
+                
+                // Try to find the appropriate conda environment
+                if (condaBasePath) {
+                    const pythonExe = process.platform === "win32" ? "python.exe" : "python";
+                    const yoloEnvPath = path.join(condaBasePath, "electron-python-yolo", "bin", pythonExe);
+                    const retinaEnvPath = path.join(condaBasePath, "electron-python-retinaface", "bin", pythonExe);
+                    const fallbackPath = path.join(condaBasePath, "electron-python-sample", "bin", pythonExe);
+                    
+                    // Choose environment based on current model type
+                    if (currentModelType === 'retinaface' && fs.existsSync(retinaEnvPath)) {
+                        pythonPath = retinaEnvPath;
+                        try { console.log(`Using RetinaFace conda environment: ${pythonPath}`); } catch (e) {}
+                    } else if (currentModelType === 'yolo' && fs.existsSync(yoloEnvPath)) {
+                        pythonPath = yoloEnvPath;
+                        try { console.log(`Using YOLO conda environment: ${pythonPath}`); } catch (e) {}
+                    } else if (fs.existsSync(fallbackPath)) {
+                        // Fallback to combined environment if dual environments not available
+                        pythonPath = fallbackPath;
+                        try { console.log(`Using fallback combined conda environment: ${pythonPath}`); } catch (e) {}
+                    } else {
+                        // Use system Python as last resort
+                        pythonPath = process.platform === "win32" ? "python" : "python3";
+                        try { console.log(`Using system Python: ${pythonPath}`); } catch (e) {}
+                    }
+                } else {
+                    // No conda found, use system Python
+                    pythonPath = process.platform === "win32" ? "python" : "python3";
+                    try { console.log(`No conda environments found, using system Python: ${pythonPath}`); } catch (e) {}
+                }
             }
-            scriptPath = srcPath;
+            
+            // Use multi_env_launcher in development too for consistency
+            const multiEnvLauncherPath = path.join(__dirname, "..", PY_FOLDER, "multi_env_launcher.py");
+            if (fs.existsSync(multiEnvLauncherPath)) {
+                scriptPath = multiEnvLauncherPath;
+                try { console.log("Using multi-environment launcher for development"); } catch (e) {}
+            } else {
+                scriptPath = srcPath;
+                try { console.log("Multi-env launcher not found, using direct script"); } catch (e) {}
+            }
         } else {
-            console.log("Python source not found at:", srcPath);
+            try { console.log("Python source not found at:", srcPath); } catch (e) {}
             dialog.showErrorBox("Error", "Python source not found at: " + srcPath);
             return;
         }
     }
     
-    console.log("Starting Python subprocess:", pythonPath, scriptPath);
-    console.log("Working directory:", process.cwd());
-    console.log("__dirname:", __dirname);
+    // Ensure we have valid paths before proceeding
+    if (!pythonPath || !scriptPath) {
+        try { console.error("Invalid Python configuration - pythonPath:", pythonPath, "scriptPath:", scriptPath); } catch (e) {}
+        dialog.showErrorBox("Configuration Error", "Failed to configure Python environment");
+        return;
+    }
+    
+    try { console.log("Starting Python subprocess:", pythonPath, scriptPath); } catch (e) {}
+    try { console.log("Working directory:", process.cwd()); } catch (e) {}
+    try { console.log("__dirname:", __dirname); } catch (e) {}
     
     // Prepare a sanitized environment for Python to avoid leaking user PYTHONPATH/site-packages
     const resourcesBase = (__dirname.indexOf("app.asar") > 0)
@@ -92,6 +232,7 @@ const initializePython = async () => {
         // Ensure we don't pick up user's PYTHONPATH or user site-packages
         PYTHONNOUSERSITE: "1",
         PYTHONPATH: `${bundledDepsDir}:${bundledPyDir}`,
+        MODEL_TYPE: currentModelType, // Pass current model type to Python
     } as NodeJS.ProcessEnv;
 
     pyProc = crossSpawn(pythonPath, [scriptPath], {
@@ -101,12 +242,12 @@ const initializePython = async () => {
     });
     
     if (!pyProc) {
-        console.log("Failed to start Python subprocess");
+        try { console.log("Failed to start Python subprocess"); } catch (e) {}
         dialog.showErrorBox("Error", "Failed to start Python subprocess");
         return;
     }
     
-    console.log("Python subprocess started, PID:", pyProc.pid);
+    try { console.log("Python subprocess started, PID:", pyProc.pid); } catch (e) {}
     
     // Handle subprocess output
     if (pyProc.stdout) {
@@ -123,10 +264,10 @@ const initializePython = async () => {
                         const message = JSON.parse(trimmed);
                         handlePythonMessage(message);
                     } catch (e) {
-                        console.error('Error parsing Python message:', e, 'Raw:', trimmed);
+                        try { console.error('Error parsing Python message:', e, 'Raw:', trimmed); } catch (e) {}
                     }
                 } else {
-                    console.log('Python stdout (non-JSON):', trimmed);
+                    try { console.log('Python stdout (non-JSON):', trimmed); } catch (e) {}
                 }
             }
         });
@@ -143,19 +284,19 @@ const initializePython = async () => {
     }
     
     pyProc.on('error', (error: Error) => {
-        console.error('Python subprocess error:', error);
+        try { console.error('Python subprocess error:', error); } catch (e) {}
         dialog.showErrorBox("Python Error", `Failed to start Python: ${error.message}`);
         pythonReady = false;
     });
     
     pyProc.on('close', (code: number | null) => {
-        console.log(`Python subprocess exited with code ${code}`);
+        try { console.log(`Python subprocess exited with code ${code}`); } catch (e) {}
         // Only show error dialog if it's an unexpected exit (not during app shutdown)
         // and the exit code indicates an actual error
         if (code !== 0 && code !== null && !isShuttingDown) {
             // Don't show dialog for signal-based terminations (negative codes on Unix)
             if (code > 0) {
-                console.error(`Python process exited unexpectedly with code ${code}`);
+                try { console.error(`Python process exited unexpectedly with code ${code}`); } catch (e) {}
                 // Only show dialog if app is still running
                 if (!(app as any).isQuitting && Electron.BrowserWindow.getAllWindows().length > 0) {
                     dialog.showErrorBox("Python Process Error", 
@@ -179,7 +320,7 @@ const initializePython = async () => {
         checkReady();
     });
     
-    console.log("Python subprocess is ready!");
+    try { console.log("Python subprocess is ready!"); } catch (e) {}
 };
 
 const handlePythonMessage = (message: any) => {
@@ -232,7 +373,14 @@ const handlePythonMessage = (message: any) => {
 let commandCounter = 0;
 const pendingCommands = new Map<number, Function>();
 
-const sendCommandToPython = (command: any, callback?: Function) => {
+const sendCommandToPython = async (command: any, callback?: Function) => {
+    // Check if we need to restart Python with a different environment
+    const requiredModelType = detectModelType(command);
+    if (requiredModelType !== currentModelType) {
+        try { console.log(`Model type change detected: ${currentModelType} -> ${requiredModelType}`); } catch (e) {}
+        await restartPythonIfNeeded(requiredModelType);
+    }
+    
     if (!pyProc || !pythonReady) {
         try { console.log("Python not ready, queuing command:", command); } catch (e) {}
         if (callback) {
@@ -257,7 +405,7 @@ const sendCommandToPython = (command: any, callback?: Function) => {
             pendingCommands.set(commandId, callback);
         }
     } catch (error) {
-        console.error("Error sending command to Python:", error);
+        try { console.error("Error sending command to Python:", error); } catch (e) {}
         if (callback) {
             callback(error, null);
         }
@@ -292,7 +440,7 @@ ipcMain.on("getPythonStatus", (event: any) => {
 
 const exitPyProc = () => {
     if (pyProc) {
-        console.log("Terminating Python subprocess...");
+        try { console.log("Terminating Python subprocess..."); } catch (e) {}
         isShuttingDown = true;
         
         // Send exit command first for graceful shutdown
@@ -301,7 +449,7 @@ const exitPyProc = () => {
         // Give it a moment to exit gracefully, then force kill if necessary
         setTimeout(() => {
             if (pyProc && !pyProc.killed) {
-                console.log("Force killing Python subprocess...");
+                try { console.log("Force killing Python subprocess..."); } catch (e) {}
                 pyProc.kill('SIGTERM');
                 // If still not dead after another second, use SIGKILL
                 setTimeout(() => {
@@ -319,7 +467,7 @@ const exitPyProc = () => {
 
 // Initialize Python when app is ready
 app.whenReady().then(() => {
-    initializePython().catch(console.error);
+    initializePython().catch((e) => { try { console.error(e); } catch (e) {} });
 });
 
 app.on("will-quit", exitPyProc);

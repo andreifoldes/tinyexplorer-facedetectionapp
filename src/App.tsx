@@ -7,8 +7,8 @@ const ipcRenderer = (window as any).isInElectronRenderer
 
 const App = () => {
     const [selectedFolder, setSelectedFolder] = useState("");
-    const [selectedModel, setSelectedModel] = useState("yolov8n.pt");
-    const [confidenceThreshold, setConfidenceThreshold] = useState(0.5);
+    const [selectedModel, setSelectedModel] = useState("RetinaFace");
+    const [confidenceThreshold, setConfidenceThreshold] = useState(0.9);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isStarting, setIsStarting] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -60,19 +60,26 @@ const App = () => {
                 console.log("Available models loaded:", response.models);
                 setAvailableModels(response.models);
                 
-                // Set better default if face models are available
-                if (response.models.includes("yolov8l-face.pt") && selectedModel === "yolov8n.pt") {
-                    console.log("Auto-selecting better face model: yolov8l-face.pt");
+                // Set RetinaFace as default if available, otherwise use best YOLO face model
+                if (response.models.includes("RetinaFace") && selectedModel === "RetinaFace") {
+                    console.log("RetinaFace is available and already selected as default");
+                    setConfidenceThreshold(0.9);
+                } else if (response.models.includes("RetinaFace")) {
+                    console.log("Auto-selecting RetinaFace as the default model");
+                    setSelectedModel("RetinaFace");
+                    setConfidenceThreshold(0.9);
+                } else if (response.models.includes("yolov8l-face.pt")) {
+                    console.log("RetinaFace not available, auto-selecting best YOLO face model: yolov8l-face.pt");
                     setSelectedModel("yolov8l-face.pt");
                     setConfidenceThreshold(0.7);
                 }
             } else {
                 console.error("Failed to load models:", response.message);
-                setAvailableModels(["yolov8n.pt"]); // Fallback
+                setAvailableModels(["RetinaFace"]); // Fallback
             }
         } catch (error) {
             console.error("Error loading models:", error);
-            setAvailableModels(["yolov8n.pt"]); // Fallback
+            setAvailableModels(["RetinaFace"]); // Fallback
         }
     }, [sendPythonCommand, selectedModel]);
 
@@ -158,7 +165,7 @@ const App = () => {
             
             switch (eventData.type) {
                 case 'progress':
-                    if (!eventData.data.includes('ℹ️ DEBUG:')) {
+                    if (!eventData.data.includes('ℹ️ DEBUG:') && !eventData.data.includes('Processing stopped by user')) {
                         const message = eventData.data;
                         
                         // Check if this is a download progress update (contains "Downloading" and percentage)

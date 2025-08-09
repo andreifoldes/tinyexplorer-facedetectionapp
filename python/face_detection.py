@@ -1,23 +1,34 @@
 import os
 import cv2
 import numpy as np
-from ultralytics import YOLO
 import threading
 import time
 from typing import List, Dict, Optional, Callable
 import csv
 from datetime import datetime
-import torch
 import requests
 import sys
 
-# RetinaFace is now available with the updated environment
+# Conditional imports to avoid conflicts between environments
+YOLO_AVAILABLE = False
+RETINAFACE_AVAILABLE = False
+
+# Try to import YOLO (ultralytics + torch)
+try:
+    from ultralytics import YOLO
+    import torch
+    YOLO_AVAILABLE = True
+    print("YOLO/Ultralytics loaded successfully", file=sys.stderr)
+except ImportError as e:
+    print(f"YOLO/Ultralytics not available: {e}", file=sys.stderr)
+
+# Try to import RetinaFace
 try:
     from retinaface import RetinaFace
     RETINAFACE_AVAILABLE = True
     print("RetinaFace loaded successfully", file=sys.stderr)
 except ImportError as e:
-    RETINAFACE_AVAILABLE = False
+    print(f"RetinaFace not available: {e}", file=sys.stderr)
     print(f"RetinaFace not available: {e}", file=sys.stderr)
 
 class FaceDetectionProcessor:
@@ -120,11 +131,10 @@ class FaceDetectionProcessor:
             return False
         
     def load_model(self, model_path: str = "yolov8n.pt"):
-        """Load model for face detection (YOLO or RetinaFace)"""
+        """Load model for face detection (YOLO, RetinaFace, or OpenCV)"""
         try:
             if model_path.lower() == "retinaface":
-                if not RETINAFACE_AVAILABLE:
-                    raise ImportError("RetinaFace not available. Install with: pip install retina-face")
+                # This is the RetinaFace case (moved here for clarity)
                 self.model_type = "RetinaFace"
                 self.current_model_path = model_path
                 
@@ -172,6 +182,13 @@ class FaceDetectionProcessor:
                 else:
                     if self.progress_callback:
                         self.progress_callback(f"{self.status_symbols['success']} Found existing model: {os.path.basename(resolved_model_path)}")
+                
+                # Check if YOLO is available before loading
+                if not YOLO_AVAILABLE:
+                    if self.progress_callback:
+                        self.progress_callback(f"{self.status_symbols['error']} YOLO/Ultralytics is not available in this environment")
+                        self.progress_callback(f"{self.status_symbols['info']} Please use RetinaFace model or switch to YOLO environment")
+                    return False
                 
                 # YOLO automatically downloads standard models if they don't exist
                 # Use MPS for Apple Silicon Macs, CPU otherwise (avoid CUDA issues)
@@ -619,6 +636,8 @@ class FaceDetectionProcessor:
         
         return detections
     
+    # Removed OpenCV Haar Cascade fallback per product requirements
+    
     def _save_image_with_boxes(self, image, detections: List[Dict], image_path: str, result_folder: str):
         """Save image with bounding boxes drawn"""
         try:
@@ -862,16 +881,51 @@ class FaceDetectionProcessor:
     
     def get_available_models(self) -> List[str]:
         """Get list of available models (limited to match old_script.py)"""
-        models = [
-            "yolov8n-face.pt",
-            "yolov8m-face.pt",
-            "yolov8l-face.pt",
-            "yolov11m-face.pt",
-            "yolov11l-face.pt",
-            "yolov12l-face.pt"
-        ]
+        models = []
         
-        if RETINAFACE_AVAILABLE:
-            models.append("RetinaFace")
+        # Check if we're in development mode with dual environments
+        import os
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        parent_dir = os.path.dirname(script_dir)
+        yolo_env_path = os.path.join(parent_dir, "yolo-env")
+        retinaface_env_path = os.path.join(parent_dir, "retinaface-env")
+        
+        has_yolo_env = os.path.exists(yolo_env_path)
+        has_retinaface_env = os.path.exists(retinaface_env_path)
+        
+        # In development mode with dual environments, show all models regardless of current environment
+        if has_yolo_env or has_retinaface_env:
+            print(f"Dual environment setup detected - showing all available models", file=sys.stderr)
+            
+            # Always include YOLO models if YOLO environment exists
+            if has_yolo_env:
+                models.extend([
+                    "yolov8n-face.pt",
+                    "yolov8m-face.pt", 
+                    "yolov8l-face.pt",
+                    "yolov11m-face.pt",
+                    "yolov11l-face.pt",
+                    "yolov12l-face.pt"
+                ])
+                print(f"YOLO environment detected at {yolo_env_path}, adding YOLO models", file=sys.stderr)
+            
+            # Always include RetinaFace if RetinaFace environment exists
+            if has_retinaface_env:
+                models.append("RetinaFace")
+                print(f"RetinaFace environment detected at {retinaface_env_path}, adding RetinaFace", file=sys.stderr)
+        else:
+            # Single environment mode - only show models for available frameworks
+            if YOLO_AVAILABLE:
+                models.extend([
+                    "yolov8n-face.pt",
+                    "yolov8m-face.pt", 
+                    "yolov8l-face.pt",
+                    "yolov11m-face.pt",
+                    "yolov11l-face.pt",
+                    "yolov12l-face.pt"
+                ])
+            
+            if RETINAFACE_AVAILABLE:
+                models.append("RetinaFace")
         
         return models
