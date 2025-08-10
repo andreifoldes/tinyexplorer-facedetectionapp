@@ -150,3 +150,4 @@ squashfs-root/
 
 # macOS disk images
 *.dmg
+\n# Local Python/Conda envs\nretinaface-env/\nyolo-env/\n*-env/\n# macOS app bundles\n*.app/\n
