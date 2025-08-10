@@ -64,11 +64,14 @@ try {
     
     // Create YOLO virtual environment
     console.log('Creating YOLO virtual environment...');
-    execSync(`python3 -m venv "${yoloEnvDir}"`, { stdio: 'inherit' });
+    const pyForYolo = process.platform === 'win32' ? 'python' : 'python3';
+    execSync(`${pyForYolo} -m venv "${yoloEnvDir}"`, { stdio: 'inherit' });
     
     // Install YOLO packages in virtual environment
     console.log('Installing YOLO packages...');
-    const yoloPython = path.join(yoloEnvDir, 'bin', 'python');
+    const yoloPython = process.platform === 'win32'
+        ? path.join(yoloEnvDir, 'Scripts', 'python.exe')
+        : path.join(yoloEnvDir, 'bin', 'python');
 
     // Always upgrade tooling first
     execSync(`"${yoloPython}" -m pip install --no-cache-dir --upgrade pip setuptools wheel`, {
@@ -120,7 +123,9 @@ try {
         execSync(`${retinafacePythonSystem} -m venv "${retinafaceEnvDir}"`, { stdio: 'inherit' });
 
         console.log('Installing RetinaFace packages...');
-        const retinafacePython = path.join(retinafaceEnvDir, 'bin', 'python');
+        const retinafacePython = process.platform === 'win32'
+            ? path.join(retinafaceEnvDir, 'Scripts', 'python.exe')
+            : path.join(retinafaceEnvDir, 'bin', 'python');
 
         // Always upgrade pip tooling first
         execSync(`"${retinafacePython}" -m pip install --no-cache-dir --upgrade pip setuptools wheel`, { stdio: 'inherit', env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' } });
