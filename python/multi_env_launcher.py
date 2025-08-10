@@ -53,18 +53,25 @@ def setup_python_path(model_type='yolo'):
                 sys.executable = venv_python
                 print(f"Set virtual environment python: {venv_python}", file=sys.stderr)
             
-            # Use virtual environment's site-packages directory
-            site_packages_dir = os.path.join(env_dir, 'lib', 'python3.13', 'site-packages')
-            if not os.path.exists(site_packages_dir):
-                # Try different Python version directories
-                lib_dir = os.path.join(env_dir, 'lib')
-                if os.path.exists(lib_dir):
-                    python_dirs = [d for d in os.listdir(lib_dir) if d.startswith('python3.')]
-                    if python_dirs:
-                        site_packages_dir = os.path.join(lib_dir, python_dirs[0], 'site-packages')
+            # Use virtual environment's site-packages directory by auto-detecting version
+            site_packages_dir = None
+            # Common layout: <env>/lib/pythonX.Y/site-packages
+            lib_dir = os.path.join(env_dir, 'lib')
+            if os.path.exists(lib_dir):
+                python_dirs = sorted([d for d in os.listdir(lib_dir) if d.startswith('python')])
+                for py_dir in python_dirs:
+                    candidate = os.path.join(lib_dir, py_dir, 'site-packages')
+                    if os.path.exists(candidate):
+                        site_packages_dir = candidate
+                        break
+            # Windows layout: <env>\\Lib\\site-packages
+            if site_packages_dir is None:
+                win_candidate = os.path.join(env_dir, 'Lib', 'site-packages')
+                if os.path.exists(win_candidate):
+                    site_packages_dir = win_candidate
             
             # Add site-packages directory to the beginning of sys.path
-            if os.path.exists(site_packages_dir) and site_packages_dir not in sys.path:
+            if site_packages_dir and os.path.exists(site_packages_dir) and site_packages_dir not in sys.path:
                 sys.path.insert(0, site_packages_dir)
                 print(f"Added {model_type} site-packages to path: {site_packages_dir}", file=sys.stderr)
             
@@ -74,8 +81,9 @@ def setup_python_path(model_type='yolo'):
             print(f"Added {model_type} environment to path: {env_dir}", file=sys.stderr)
             
             # Set PYTHONPATH to include site-packages
-            if os.path.exists(site_packages_dir):
-                os.environ['PYTHONPATH'] = site_packages_dir + ':' + env_dir
+            if site_packages_dir and os.path.exists(site_packages_dir):
+                sep = ';' if os.name == 'nt' else ':'
+                os.environ['PYTHONPATH'] = site_packages_dir + sep + env_dir
             else:
                 os.environ['PYTHONPATH'] = env_dir
             

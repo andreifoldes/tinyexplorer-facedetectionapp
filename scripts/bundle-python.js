@@ -38,6 +38,17 @@ const retinafaceRequirementsPath = path.join(pythonDistDir, 'python', 'requireme
 
 // Helper to find a preferred Python for retinaface (prefer 3.10 for TF compatibility)
 function findPythonForRetinaFace() {
+    // Allow CI to force a specific interpreter
+    const forced = process.env.RETINAFACE_PYTHON || process.env.PYTHON_FOR_RETINAFACE;
+    if (forced) {
+        try {
+            execSync(`"${forced}" --version`, { stdio: 'ignore' });
+            console.log(`Using forced RetinaFace Python from env: ${forced}`);
+            return forced;
+        } catch (e) {
+            console.warn(`Warning: RETINAFACE_PYTHON not usable: ${forced}. Falling back to candidates.`);
+        }
+    }
     const candidates = ['python3.10', 'python3.11', 'python3.12', 'python3'];
     for (const c of candidates) {
         try {

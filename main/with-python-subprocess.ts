@@ -70,17 +70,26 @@ const initializePython = async () => {
         try { console.log("Running in packaged mode"); } catch (e) {}
         
         const resourcesBase = process.resourcesPath;
-        const yoloVenvPython = path.join(resourcesBase, PY_DIST_FOLDER, "yolo-env", "bin", "python");
-        const retinafaceVenvPython = path.join(resourcesBase, PY_DIST_FOLDER, "retinaface-env", "bin", "python");
+        const yoloVenvPython = path.join(resourcesBase, PY_DIST_FOLDER, "yolo-env", "bin", process.platform === "win32" ? "python.exe" : "python");
+        const yoloVenvPython3 = path.join(resourcesBase, PY_DIST_FOLDER, "yolo-env", "bin", process.platform === "win32" ? "python.exe" : "python3");
+        const retinafaceVenvPython = path.join(resourcesBase, PY_DIST_FOLDER, "retinaface-env", "bin", process.platform === "win32" ? "python.exe" : "python");
+        const retinafaceVenvPython3 = path.join(resourcesBase, PY_DIST_FOLDER, "retinaface-env", "bin", process.platform === "win32" ? "python.exe" : "python3");
         const subprocessScriptPath = path.join(resourcesBase, PY_DIST_FOLDER, "python", "subprocess_api.py");
         
         // Choose Python executable based on model type - use venv directly
-        if (currentModelType === 'retinaface' && fs.existsSync(retinafaceVenvPython)) {
-            pythonPath = retinafaceVenvPython;
+        const pickExisting = (...candidates: string[]): string | "" => {
+            for (const c of candidates) {
+                if (c && fs.existsSync(c)) return c;
+            }
+            return "";
+        };
+
+        if (currentModelType === 'retinaface' && (fs.existsSync(retinafaceVenvPython) || fs.existsSync(retinafaceVenvPython3))) {
+            pythonPath = pickExisting(retinafaceVenvPython, retinafaceVenvPython3);
             scriptPath = subprocessScriptPath;
             try { console.log(`Using RetinaFace venv Python directly: ${pythonPath}`); } catch (e) {}
-        } else if (currentModelType === 'yolo' && fs.existsSync(yoloVenvPython)) {
-            pythonPath = yoloVenvPython;
+        } else if (currentModelType === 'yolo' && (fs.existsSync(yoloVenvPython) || fs.existsSync(yoloVenvPython3))) {
+            pythonPath = pickExisting(yoloVenvPython, yoloVenvPython3);
             scriptPath = subprocessScriptPath;
             try { console.log(`Using YOLO venv Python directly: ${pythonPath}`); } catch (e) {}
         } else {
@@ -92,9 +101,19 @@ const initializePython = async () => {
                 try { console.log("Fallback to multi-environment launcher"); } catch (e) {}
                 
                 // Find system Python for fallback
-                const pythonCandidates = process.platform === "win32" 
-                    ? ["python", "python.exe", "python3", "python3.exe", "python3.10", "python3.11", "python3.12", "python3.13"]
-                    : ["python3", "python", "python3.13", "python3.12", "python3.11", "python3.10", "/usr/bin/python3", "/usr/local/bin/python3", "/opt/homebrew/bin/python3"];
+            const pythonCandidates = process.platform === "win32" 
+                    ? ["C\\\:\\Windows\\System32\\python.exe", "python3.exe", "python.exe", "python", "python3", "python3.11", "python3.10", "python3.12", "python3.13"]
+                    : [
+                        "/usr/bin/python3",
+                        "/opt/homebrew/bin/python3",
+                        "/usr/local/bin/python3",
+                        "python3",
+                        "python",
+                        "python3.13",
+                        "python3.12",
+                        "python3.11",
+                        "python3.10"
+                    ];
                 
                 let foundPython = false;
                 for (const candidate of pythonCandidates) {
@@ -232,6 +251,9 @@ const initializePython = async () => {
         // Ensure we don't pick up user's PYTHONPATH or user site-packages
         PYTHONNOUSERSITE: "1",
         PYTHONPATH: `${bundledDepsDir}:${bundledPyDir}`,
+        // Detach from any active virtual environment from the user's shell
+        VIRTUAL_ENV: "",
+        PYTHONHOME: "",
         MODEL_TYPE: currentModelType, // Pass current model type to Python
     } as NodeJS.ProcessEnv;
 
