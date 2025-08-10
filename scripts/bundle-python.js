@@ -36,6 +36,18 @@ fs.mkdirSync(retinafaceEnvDir, { recursive: true });
 const yoloRequirementsPath = path.join(pythonDistDir, 'python', 'requirements.txt');
 const retinafaceRequirementsPath = path.join(pythonDistDir, 'python', 'requirements-retinaface.txt');
 
+// Helper to find a preferred Python for retinaface (prefer 3.10 for TF compatibility)
+function findPythonForRetinaFace() {
+    const candidates = ['python3.10', 'python3.11', 'python3.12', 'python3'];
+    for (const c of candidates) {
+        try {
+            execSync(`${c} --version`, { stdio: 'ignore' });
+            return c;
+        } catch (_) {}
+    }
+    return 'python3';
+}
+
 try {
     console.log('Creating virtual environments for better package isolation...');
     
@@ -52,12 +64,40 @@ try {
     // Create RetinaFace virtual environment
     console.log('Creating RetinaFace virtual environment...');
     try {
-        execSync(`python3 -m venv "${retinafaceEnvDir}"`, { stdio: 'inherit' });
-        
+        const retinafacePythonSystem = findPythonForRetinaFace();
+        console.log(`Selected system Python for RetinaFace venv: ${retinafacePythonSystem}`);
+        execSync(`${retinafacePythonSystem} -m venv "${retinafaceEnvDir}"`, { stdio: 'inherit' });
+
         console.log('Installing RetinaFace packages...');
         const retinafacePython = path.join(retinafaceEnvDir, 'bin', 'python');
-        const retinafaceInstallCmd = `"${retinafacePython}" -m pip install --no-cache-dir --upgrade pip setuptools wheel && "${retinafacePython}" -m pip install --no-cache-dir --upgrade -r "${retinafaceRequirementsPath}"`;
-        execSync(retinafaceInstallCmd, { stdio: 'inherit', env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' } });
+
+        // Always upgrade pip tooling first
+        execSync(`"${retinafacePython}" -m pip install --no-cache-dir --upgrade pip setuptools wheel`, { stdio: 'inherit', env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' } });
+
+        // On Apple Silicon macOS, prefer tensorflow-macos + tensorflow-metal pinned to 2.15 line with python 3.10
+        if (process.platform === 'darwin' && process.arch === 'arm64') {
+            console.log('Detected macOS arm64 - installing tensorflow-macos + tensorflow-metal for RetinaFace');
+            const pkgs = [
+                'flask',
+                'flask-cors',
+                'graphene>=3.0',
+                'flask-graphql>=2.0',
+                'opencv-python',
+                'pillow',
+                'numpy<2.0.0',
+                'tensorflow-macos==2.15.0',
+                'tensorflow-metal==1.1.0',
+                'tf-keras==2.15.0',
+                'retina-face>=0.0.14'
+            ];
+            const quoted = pkgs.map(p => `"${p}"`).join(' ');
+            execSync(`"${retinafacePython}" -m pip install --no-cache-dir ${quoted}`, { stdio: 'inherit', env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' } });
+        } else {
+            // Default path: install from requirements file
+            const retinafaceInstallCmd = `"${retinafacePython}" -m pip install --no-cache-dir --upgrade -r "${retinafaceRequirementsPath}"`;
+            execSync(retinafaceInstallCmd, { stdio: 'inherit', env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' } });
+        }
+
         console.log('RetinaFace environment created successfully!');
     } catch (retinafaceError) {
         console.warn('Warning: Failed to create RetinaFace environment. RetinaFace models will not be available in packaged app.');
@@ -73,6 +113,9 @@ try {
 // Also create python-deps for backwards compatibility
 const depsDir = path.join(pythonDistDir, 'python-deps');
 console.log('Creating python-deps symlink for backwards compatibility...');
+try {
+    execSync(`rm -f "${depsDir}"`);
+} catch (_) {}
 execSync(`ln -sf yolo-env "${depsDir}"`);
 
 console.log('Python bundle created successfully!');

@@ -8,3 +8,5 @@ pillow
 numpy
 torch
 torchvision
+dill
+omegaconf
