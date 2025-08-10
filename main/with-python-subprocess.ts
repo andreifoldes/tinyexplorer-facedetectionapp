@@ -100,20 +100,46 @@ const initializePython = async () => {
                 scriptPath = multiEnvLauncherPath;
                 try { console.log("Fallback to multi-environment launcher"); } catch (e) {}
                 
-                // Find system Python for fallback
-            const pythonCandidates = process.platform === "win32" 
-                    ? ["C\\\:\\Windows\\System32\\python.exe", "python3.exe", "python.exe", "python", "python3", "python3.11", "python3.10", "python3.12", "python3.13"]
+                // Determine desired Python version from bundled env to avoid ABI mismatch (e.g., numpy)
+                const desiredVersion = (() => {
+                    try {
+                        const envDir = currentModelType === 'retinaface'
+                            ? path.join(resourcesBase, PY_DIST_FOLDER, 'retinaface-env')
+                            : path.join(resourcesBase, PY_DIST_FOLDER, 'yolo-env');
+                        const libDir = process.platform === 'win32'
+                            ? path.join(envDir, 'Lib')
+                            : path.join(envDir, 'lib');
+                        if (fs.existsSync(libDir)) {
+                            const entries = fs.readdirSync(libDir).filter(n => n.startsWith('python'));
+                            if (entries.length > 0) {
+                                const match = entries[0].match(/python(\d+\.\d+)/);
+                                if (match && match[1]) return match[1];
+                            }
+                        }
+                    } catch (_) {}
+                    return '';
+                })();
+
+                // Build candidates, preferring exact version match if detected
+                const versioned = (suffix: string) => desiredVersion ? suffix.replace('3', desiredVersion) : '';
+                const pythonCandidates = process.platform === "win32" 
+                    ? [
+                        "C\\\:\\Windows\\System32\\python.exe",
+                        desiredVersion ? `python${desiredVersion}.exe` : '',
+                        desiredVersion ? `python${desiredVersion}` : '',
+                        'python3.exe', 'python.exe', 'python', 'python3'
+                    ].filter(Boolean)
                     : [
-                        "/usr/bin/python3",
+                        desiredVersion ? `/opt/homebrew/bin/python${desiredVersion}` : '',
+                        desiredVersion ? `/usr/local/bin/python${desiredVersion}` : '',
+                        desiredVersion ? `/usr/bin/python${desiredVersion}` : '',
+                        desiredVersion ? `python${desiredVersion}` : '',
                         "/opt/homebrew/bin/python3",
                         "/usr/local/bin/python3",
+                        "/usr/bin/python3",
                         "python3",
-                        "python",
-                        "python3.13",
-                        "python3.12",
-                        "python3.11",
-                        "python3.10"
-                    ];
+                        "python"
+                    ].filter(Boolean);
                 
                 let foundPython = false;
                 for (const candidate of pythonCandidates) {
@@ -131,7 +157,8 @@ const initializePython = async () => {
                 
                 if (!foundPython) {
                     try { console.error("No system Python executable found for fallback!"); } catch (e) {}
-                    dialog.showErrorBox("Python Not Found", "Could not find Python executable. Please install Python 3.10 or later.");
+                    const required = desiredVersion ? `Python ${desiredVersion}` : 'a compatible Python 3 interpreter';
+                    dialog.showErrorBox("Python Not Found", `Could not find ${required}. Please install it and relaunch the app.`);
                     return;
                 }
             } else {
