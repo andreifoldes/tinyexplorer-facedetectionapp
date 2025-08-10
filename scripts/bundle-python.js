@@ -32,9 +32,9 @@ const retinafaceEnvDir = path.join(pythonDistDir, 'retinaface-env');
 fs.mkdirSync(yoloEnvDir, { recursive: true });
 fs.mkdirSync(retinafaceEnvDir, { recursive: true });
 
-// Use separate requirements files for each environment
-const yoloRequirementsPath = path.join(pythonDistDir, 'python', 'requirements.txt');
-const retinafaceRequirementsPath = path.join(pythonDistDir, 'python', 'requirements-retinaface.txt');
+// Use requirements from source tree to avoid relying on copy timing
+const yoloRequirementsPath = path.join(__dirname, '..', 'python', 'requirements.txt');
+const retinafaceRequirementsPath = path.join(__dirname, '..', 'python', 'requirements-retinaface.txt');
 
 // Helper to find a preferred Python for retinaface (prefer 3.10 for TF compatibility)
 function findPythonForRetinaFace() {
