@@ -27,6 +27,26 @@ jobs:
     - name: Install Node dependencies
       run: npm ci
 
+    - name: Ensure square icon for Windows
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        if (Test-Path "resources/icons/256x256.png") {
+          choco install imagemagick -y --no-progress
+          $dim = magick identify -format "%w %h" resources/icons/256x256.png
+          $parts = $dim -split ' '
+          $w = [int]$parts[0]
+          $h = [int]$parts[1]
+          if ($w -ne $h) {
+            $s = [Math]::Max($w,$h)
+            magick convert resources/icons/256x256.png -background none -gravity center -extent ${s}x${s} resources/icons/256x256.png
+            Write-Host "Icon squared to ${s}x${s}"
+          } else {
+            Write-Host "Icon already square"
+          }
+        } else {
+          Write-Host "Icon not found, skipping"
+        }
     - name: Build Python bundle
       run: npm run python-build
       env:
