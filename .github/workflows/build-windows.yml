@@ -43,9 +43,6 @@ jobs:
     - name: Build Electron main process
       run: |
         npx tsc -p tsconfig.electronMain.json
-        # Ensure icon exists and is square before ICO conversion
-        node -e "const fs=require('fs');const {createCanvas,loadImage}=require('canvas');(async()=>{const p='resources/icons/256x256.png';if(!fs.existsSync(p)){console.log('missing icon:',p);process.exit(0);}const img=await loadImage(p);if(img.width!==img.height){const s=Math.max(img.width,img.height);const c=createCanvas(s,s);const ctx=c.getContext('2d');ctx.fillStyle='#00000000';ctx.fillRect(0,0,s,s);ctx.drawImage(img,(s-img.width)/2,(s-img.height)/2);fs.writeFileSync('resources/icons/256x256-square.png',c.toBuffer('image/png'));console.log('wrote square icon');}else{fs.copyFileSync(p,'resources/icons/256x256-square.png');}})().catch(e=>{console.error(e);process.exit(1);})"
-        npx --yes png-to-ico resources/icons/256x256-square.png > resources/icon.ico
         npx electron-builder --win --publish=never
       env:
         ELECTRON_BUILDER_CACHE: ${{ runner.temp }}\electron-builder-cache
