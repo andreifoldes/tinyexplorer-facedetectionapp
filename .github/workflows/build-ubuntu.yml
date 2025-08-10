@@ -2,6 +2,7 @@ name: Build Ubuntu
 
 on:
   workflow_dispatch:
+  push:
 
 jobs:
   build:
@@ -18,36 +19,34 @@ jobs:
         node-version: '18'
         cache: 'npm'
 
-    - name: Set up Python
+    - name: Set up Python 3.10
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
-
-    - name: Install Python dependencies for bundling
-      run: |
-        python -m pip install --upgrade pip
-        pip install --upgrade setuptools wheel
-        # Install CPU-only wheels where necessary
-        pip install --extra-index-url https://download.pytorch.org/whl/cpu \
-          tensorflow==2.19.0 tf-keras numpy==1.26.4 opencv-python-headless pillow==10.3.0 \
-          torch==2.5.0 torchvision==0.20.0 ultralytics retina-face==0.0.17 \
-          flask flask-cors flask-graphql flask-socketio graphene
+        python-version: '3.10'
 
     - name: Install Node dependencies
       run: npm ci
 
     - name: Build Python bundle
       run: npm run python-build
+      env:
+        RETINAFACE_PYTHON: python3.10
+        PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
     - name: Build React app
-      run: NODE_OPTIONS="--openssl-legacy-provider" npm run react-build
+      run: npx craco build
+      env:
+        NODE_OPTIONS: "--openssl-legacy-provider"
+        CI: false
+        GENERATE_SOURCEMAP: false
 
     - name: Build Electron main process
       run: |
         npx tsc -p tsconfig.electronMain.json
-          npx electron-builder --linux appimage --publish=never
+        npx electron-builder --linux appimage --publish=never
       env:
         ELECTRON_BUILDER_CACHE: /tmp/electron-builder-cache
+        PYTHON: python3
 
     - name: List build artifacts
       run: ls -la dist/ || echo "No dist directory"
