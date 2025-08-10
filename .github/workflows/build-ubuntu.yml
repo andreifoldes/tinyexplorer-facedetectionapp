@@ -33,6 +33,11 @@ jobs:
         RETINAFACE_PYTHON: python3.10
         PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
+    - name: Install AppImage dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends libfuse2
+
     - name: Build React app
       run: npx craco build
       env:

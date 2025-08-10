@@ -69,8 +69,48 @@ try {
     // Install YOLO packages in virtual environment
     console.log('Installing YOLO packages...');
     const yoloPython = path.join(yoloEnvDir, 'bin', 'python');
-    const yoloInstallCmd = `"${yoloPython}" -m pip install --no-cache-dir --upgrade pip setuptools wheel && "${yoloPython}" -m pip install --no-cache-dir --upgrade -r "${yoloRequirementsPath}"`;
-    execSync(yoloInstallCmd, { stdio: 'inherit', env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' } });
+
+    // Always upgrade tooling first
+    execSync(`"${yoloPython}" -m pip install --no-cache-dir --upgrade pip setuptools wheel`, {
+        stdio: 'inherit',
+        env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }
+    });
+
+    // On Linux runners, prefer CPU-only PyTorch wheels to avoid CUDA resolution issues
+    const isLinux = process.platform === 'linux';
+    let installCmd = `"${yoloPython}" -m pip install --no-cache-dir --upgrade -r "${yoloRequirementsPath}"`;
+    if (isLinux) {
+        installCmd = `"${yoloPython}" -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple --upgrade -r "${yoloRequirementsPath}"`;
+    }
+
+    try {
+        execSync(installCmd, { stdio: 'inherit', env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' } });
+    } catch (primaryInstallError) {
+        console.warn('Primary YOLO dependency install failed. Attempting fallback with pinned CPU torch/torchvision...');
+        try {
+            // Install pinned torch/torchvision CPU wheels first, then the rest of the requirements
+            if (isLinux) {
+                execSync(`"${yoloPython}" -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple torch==2.2.2 torchvision==0.17.2`, {
+                    stdio: 'inherit',
+                    env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }
+                });
+            } else {
+                execSync(`"${yoloPython}" -m pip install --no-cache-dir torch==2.2.2 torchvision==0.17.2`, {
+                    stdio: 'inherit',
+                    env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }
+                });
+            }
+
+            // Install remaining requirements; already-installed pins will be kept if compatible
+            execSync(`"${yoloPython}" -m pip install --no-cache-dir --upgrade -r "${yoloRequirementsPath}"`, {
+                stdio: 'inherit',
+                env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }
+            });
+        } catch (fallbackError) {
+            console.error('Fallback YOLO dependency install also failed.');
+            throw fallbackError;
+        }
+    }
     
     // Create RetinaFace virtual environment
     console.log('Creating RetinaFace virtual environment...');
