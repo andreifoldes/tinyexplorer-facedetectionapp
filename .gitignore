@@ -132,3 +132,22 @@ CLAUDE.md
 GEMINI.md
 *.pt
 .claude
+test_imgs
+test-results
+artifacts/
+
+# Build artefacts (large binaries)
+artefacts/
+temp-extract/
+squashfs-root/
+*.deb
+*.AppImage
+*.snap
+*.asar
+
+# macOS application bundles
+*.app/
+
+# macOS disk images
+*.dmg
+\n# Local Python/Conda envs\nretinaface-env/\nyolo-env/\n*-env/\n# macOS app bundles\n*.app/\n

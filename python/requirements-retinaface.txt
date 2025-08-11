@@ -2,11 +2,8 @@ flask
 flask-cors
 graphene>=3.0
 flask-graphql>=2.0
-ultralytics
 opencv-python
 pillow
 numpy
-torch
-torchvision
-dill
-omegaconf
+tensorflow==2.20.0rc0
+retina-face>=0.0.14

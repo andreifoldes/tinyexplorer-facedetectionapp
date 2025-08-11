@@ -7,8 +7,8 @@ const ipcRenderer = (window as any).isInElectronRenderer
 
 const App = () => {
     const [selectedFolder, setSelectedFolder] = useState("");
-    const [selectedModel, setSelectedModel] = useState("yolov8n.pt");
-    const [confidenceThreshold, setConfidenceThreshold] = useState(0.5);
+    const [selectedModel, setSelectedModel] = useState("RetinaFace");
+    const [confidenceThreshold, setConfidenceThreshold] = useState(0.9);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isStarting, setIsStarting] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -17,6 +17,7 @@ const App = () => {
     const [availableModels, setAvailableModels] = useState<string[]>([]);
     const [results, setResults] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-unused-vars
     const [resultsFolder, setResultsFolder] = useState("");
+    const [completedResultsFolder, setCompletedResultsFolder] = useState("");
     const [isVideoFile, setIsVideoFile] = useState(false);
     const [pythonReady, setPythonReady] = useState(false);
 
@@ -59,19 +60,26 @@ const App = () => {
                 console.log("Available models loaded:", response.models);
                 setAvailableModels(response.models);
                 
-                // Set better default if face models are available
-                if (response.models.includes("yolov8l-face.pt") && selectedModel === "yolov8n.pt") {
-                    console.log("Auto-selecting better face model: yolov8l-face.pt");
+                // Set RetinaFace as default if available, otherwise use best YOLO face model
+                if (response.models.includes("RetinaFace") && selectedModel === "RetinaFace") {
+                    console.log("RetinaFace is available and already selected as default");
+                    setConfidenceThreshold(0.9);
+                } else if (response.models.includes("RetinaFace")) {
+                    console.log("Auto-selecting RetinaFace as the default model");
+                    setSelectedModel("RetinaFace");
+                    setConfidenceThreshold(0.9);
+                } else if (response.models.includes("yolov8l-face.pt")) {
+                    console.log("RetinaFace not available, auto-selecting best YOLO face model: yolov8l-face.pt");
                     setSelectedModel("yolov8l-face.pt");
                     setConfidenceThreshold(0.7);
                 }
             } else {
                 console.error("Failed to load models:", response.message);
-                setAvailableModels(["yolov8n.pt"]); // Fallback
+                setAvailableModels(["RetinaFace"]); // Fallback
             }
         } catch (error) {
             console.error("Error loading models:", error);
-            setAvailableModels(["yolov8n.pt"]); // Fallback
+            setAvailableModels(["RetinaFace"]); // Fallback
         }
     }, [sendPythonCommand, selectedModel]);
 
@@ -99,6 +107,7 @@ const App = () => {
 
     const handleCompletionEvent = useCallback((data: any) => {
         console.log("Completion event:", data);
+        console.log("Completion event data.results_folder:", data.results_folder);
         
         switch (data.status) {
             case 'processing_started':
@@ -125,6 +134,14 @@ const App = () => {
                 setIsStarting(false);
                 setProgress(100);
                 
+                // Capture the results folder path
+                if (data.results_folder) {
+                    console.log("Setting completedResultsFolder to:", data.results_folder);
+                    setCompletedResultsFolder(data.results_folder);
+                } else {
+                    console.log("WARNING: No results_folder in completion event!");
+                }
+                
                 // Fetch final results
                 fetchResults();
                 break;
@@ -148,7 +165,7 @@ const App = () => {
             
             switch (eventData.type) {
                 case 'progress':
-                    if (!eventData.data.includes('ℹ️ DEBUG:')) {
+                    if (!eventData.data.includes('ℹ️ DEBUG:') && !eventData.data.includes('Processing stopped by user')) {
                         const message = eventData.data;
                         
                         // Check if this is a download progress update (contains "Downloading" and percentage)
@@ -269,6 +286,43 @@ const App = () => {
         }
     };
 
+    const getDisplayName = (modelName: string): string => {
+        if (modelName === "RetinaFace") {
+            return "RetinaFace";
+        }
+        
+        // Handle YOLO face models
+        if (modelName.includes("yolov8n-face")) {
+            return "YOLOv8 Nano (Face)";
+        } else if (modelName.includes("yolov8m-face")) {
+            return "YOLOv8 Medium (Face)";
+        } else if (modelName.includes("yolov8l-face")) {
+            return "YOLOv8 Large (Face)";
+        } else if (modelName.includes("yolov11m-face")) {
+            return "YOLOv11 Medium (Face)";
+        } else if (modelName.includes("yolov11l-face")) {
+            return "YOLOv11 Large (Face)";
+        } else if (modelName.includes("yolov12l-face")) {
+            return "YOLOv12 Large (Face)";
+        }
+        
+        // Handle general YOLO models
+        if (modelName.includes("yolov8n.pt")) {
+            return "YOLOv8 Nano";
+        } else if (modelName.includes("yolov8s.pt")) {
+            return "YOLOv8 Small";
+        } else if (modelName.includes("yolov8m.pt")) {
+            return "YOLOv8 Medium";
+        } else if (modelName.includes("yolov8l.pt")) {
+            return "YOLOv8 Large";
+        } else if (modelName.includes("yolov8x.pt")) {
+            return "YOLOv8 Extra Large";
+        }
+        
+        // Fallback to original name if no match
+        return modelName;
+    };
+
     const handleModelChange = (newModel: string) => {
         console.log("User changed model from", selectedModel, "to", newModel);
         setSelectedModel(newModel);
@@ -286,6 +340,8 @@ const App = () => {
             } else if (newModel.includes("yolov11m-face")) {
                 setConfidenceThreshold(0.6);
             } else if (newModel.includes("yolov11l-face")) {
+                setConfidenceThreshold(0.8);
+            } else if (newModel.includes("yolov12l-face")) {
                 setConfidenceThreshold(0.8);
             }
         } else {
@@ -315,6 +371,7 @@ const App = () => {
         setProgress(0);
         setProgressMessages([]);
         setHasProgressMessages(true);
+        setCompletedResultsFolder(""); // Clear previous results folder
         
         try {
             const response = await sendPythonCommand({
@@ -361,11 +418,25 @@ const App = () => {
         }
     };
 
+    const handleOpenResultsFolder = () => {
+        console.log("User clicked 'Open Results Folder' button");
+        if (completedResultsFolder && ipcRenderer) {
+            ipcRenderer.send("open-folder", completedResultsFolder);
+        }
+    };
+
 
     if (!pythonReady) {
         return (
-            <div style={{padding: '20px', fontSize: '18px', color: '#333'}}>
-                Connecting to Python backend...
+            <div className="loading-container">
+                <div className="loading-message">
+                    Starting up face detection engine...
+                </div>
+                <div className="loading-animation">
+                    <div className="dot"></div>
+                    <div className="dot"></div>
+                    <div className="dot"></div>
+                </div>
             </div>
         );
     }
@@ -405,7 +476,7 @@ const App = () => {
                         >
                             {availableModels.map(model => (
                                 <option key={model} value={model}>
-                                    {model === "RetinaFace" ? "RetinaFace (High Accuracy)" : model}
+                                    {getDisplayName(model)}
                                 </option>
                             ))}
                         </select>
@@ -487,6 +558,7 @@ const App = () => {
                             <div className="progress-text">{progress.toFixed(1)}%</div>
                         </div>
                     )}
+
                 </div>
 
                 <div className="right-panel">
@@ -499,6 +571,16 @@ const App = () => {
                                         <div key={index}>{message}</div>
                                     ))}
                                 </div>
+                                {completedResultsFolder && !isProcessing && !isStarting && (
+                                    <div className="control-section" style={{ marginTop: '10px' }}>
+                                        <button 
+                                            onClick={handleOpenResultsFolder}
+                                            className="browse-btn"
+                                        >
+                                            <span role="img" aria-label="folder">📁</span> Open Results Folder
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
 

@@ -1,23 +1,34 @@
 import os
 import cv2
 import numpy as np
-from ultralytics import YOLO
 import threading
 import time
 from typing import List, Dict, Optional, Callable
 import csv
 from datetime import datetime
-import torch
 import requests
 import sys
 
-# RetinaFace is now available with the updated environment
+# Conditional imports to avoid conflicts between environments
+YOLO_AVAILABLE = False
+RETINAFACE_AVAILABLE = False
+
+# Try to import YOLO (ultralytics + torch)
+try:
+    from ultralytics import YOLO
+    import torch
+    YOLO_AVAILABLE = True
+    print("YOLO/Ultralytics loaded successfully", file=sys.stderr)
+except ImportError as e:
+    print(f"YOLO/Ultralytics not available: {e}", file=sys.stderr)
+
+# Try to import RetinaFace
 try:
     from retinaface import RetinaFace
     RETINAFACE_AVAILABLE = True
     print("RetinaFace loaded successfully", file=sys.stderr)
 except ImportError as e:
-    RETINAFACE_AVAILABLE = False
+    print(f"RetinaFace not available: {e}", file=sys.stderr)
     print(f"RetinaFace not available: {e}", file=sys.stderr)
 
 class FaceDetectionProcessor:
@@ -45,6 +56,29 @@ class FaceDetectionProcessor:
             "complete": "🏁"
         }
         
+        # Set up a writable directory for storing downloaded models when running from a read-only filesystem
+        # like AppImage. Uses FACE_MODEL_DIR if provided, otherwise XDG_DATA_HOME or ~/.local/share.
+        self._model_dir = None
+    
+    def _get_model_dir(self) -> str:
+        """Return a writable directory path for model files and ensure it exists."""
+        if self._model_dir is not None:
+            return self._model_dir
+        try:
+            base_dir = os.environ.get("FACE_MODEL_DIR")
+            if not base_dir:
+                data_home = os.environ.get("XDG_DATA_HOME", os.path.join(os.path.expanduser("~"), ".local", "share"))
+                base_dir = os.path.join(data_home, "TinyExplorerFaceDetection", "models")
+            os.makedirs(base_dir, exist_ok=True)
+            self._model_dir = base_dir
+            if self.progress_callback:
+                self.progress_callback(f"{self.status_symbols['folder']} Using model directory: {base_dir}")
+            return base_dir
+        except Exception:
+            # Fallback to current working directory as last resort
+            self._model_dir = os.getcwd()
+            return self._model_dir
+        
     def _download_face_model(self, model_name: str) -> bool:
         """Download face detection model from GitHub releases"""
         face_models_urls = {
@@ -52,7 +86,8 @@ class FaceDetectionProcessor:
             "yolov8m-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov8m-face.pt",
             "yolov8l-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov8l-face.pt",
             "yolov11m-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov11m-face.pt",
-            "yolov11l-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov11l-face.pt"
+            "yolov11l-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov11l-face.pt",
+            "yolov12l-face.pt": "https://github.com/akanametov/yolo-face/releases/download/v0.0.0/yolov12l-face.pt"
         }
         
         if model_name not in face_models_urls:
@@ -70,7 +105,12 @@ class FaceDetectionProcessor:
             total_size = int(response.headers.get('content-length', 0))
             downloaded = 0
             
-            with open(model_name, 'wb') as f:
+            # Always write to a writable model directory
+            model_filename = os.path.basename(model_name)
+            save_dir = self._get_model_dir()
+            save_path = os.path.join(save_dir, model_filename)
+            
+            with open(save_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
@@ -80,7 +120,9 @@ class FaceDetectionProcessor:
                             self.progress_callback(f"{self.status_symbols['processing']} Downloading {model_name}: {progress:.1f}%")
             
             if self.progress_callback:
-                self.progress_callback(f"{self.status_symbols['success']} Downloaded {model_name} successfully")
+                self.progress_callback(f"{self.status_symbols['success']} Downloaded {model_name} successfully to {save_path}")
+            # Update current model path
+            self.current_model_path = save_path
             return True
             
         except Exception as e:
@@ -89,11 +131,10 @@ class FaceDetectionProcessor:
             return False
         
     def load_model(self, model_path: str = "yolov8n.pt"):
-        """Load model for face detection (YOLO or RetinaFace)"""
+        """Load model for face detection (YOLO, RetinaFace, or OpenCV)"""
         try:
             if model_path.lower() == "retinaface":
-                if not RETINAFACE_AVAILABLE:
-                    raise ImportError("RetinaFace not available. Install with: pip install retina-face")
+                # This is the RetinaFace case (moved here for clarity)
                 self.model_type = "RetinaFace"
                 self.current_model_path = model_path
                 
@@ -114,25 +155,66 @@ class FaceDetectionProcessor:
                 self.model_type = "YOLO"
                 self.current_model_path = model_path
                 
-                # Check if model file exists locally
-                if not os.path.exists(model_path):
+                # Always use writable directory for model storage
+                if not os.path.isabs(model_path):
+                    # Check if model exists in our writable directory
+                    candidate_path = os.path.join(self._get_model_dir(), os.path.basename(model_path))
+                    resolved_model_path = candidate_path
+                else:
+                    resolved_model_path = model_path
+                
+                # Check if model file exists locally, otherwise download it
+                if not os.path.exists(resolved_model_path):
                     if self.progress_callback:
-                        self.progress_callback(f"{self.status_symbols['info']} Model {model_path} not found locally")
+                        self.progress_callback(f"{self.status_symbols['info']} Model {os.path.basename(model_path)} not found - downloading...")
                     
-                    # Try to download face-specific models from GitHub
+                    # Download face-specific models from GitHub
                     if "-face.pt" in model_path.lower():
                         if not self._download_face_model(model_path):
                             if self.progress_callback:
                                 self.progress_callback(f"{self.status_symbols['error']} Failed to download face model {model_path}")
                             return False
+                        # After successful download, use the path in our model directory
+                        resolved_model_path = os.path.join(self._get_model_dir(), os.path.basename(model_path))
                     else:
                         if self.progress_callback:
                             self.progress_callback(f"{self.status_symbols['info']} Standard YOLO model will be downloaded automatically...")
+                else:
+                    if self.progress_callback:
+                        self.progress_callback(f"{self.status_symbols['success']} Found existing model: {os.path.basename(resolved_model_path)}")
+                
+                # Check if YOLO is available before loading
+                if not YOLO_AVAILABLE:
+                    if self.progress_callback:
+                        self.progress_callback(f"{self.status_symbols['error']} YOLO/Ultralytics is not available in this environment")
+                        self.progress_callback(f"{self.status_symbols['info']} Please use RetinaFace model or switch to YOLO environment")
+                    return False
                 
                 # YOLO automatically downloads standard models if they don't exist
-                self.model = YOLO(model_path).to('cuda:0' if torch.cuda.is_available() else 'cpu')
+                # Use MPS for Apple Silicon Macs, CPU otherwise (avoid CUDA issues)
+                if torch.backends.mps.is_available():
+                    device = 'mps'
+                elif torch.cuda.is_available():
+                    device = 'cuda:0'
+                else:
+                    device = 'cpu'
+                
                 if self.progress_callback:
-                    self.progress_callback(f"{self.status_symbols['success']} YOLO model loaded successfully: {model_path}")
+                    self.progress_callback(f"{self.status_symbols['processing']} Loading YOLO model: {resolved_model_path}")
+                
+                # Load YOLO model (removed signal timeout as it doesn't work in subprocess)
+                self.model = YOLO(resolved_model_path)
+                # Move to device in a separate try-catch to handle device issues
+                try:
+                    self.model = self.model.to(device)
+                    if self.progress_callback:
+                        self.progress_callback(f"{self.status_symbols['info']} Using device: {device}")
+                except Exception as device_error:
+                    if self.progress_callback:
+                        self.progress_callback(f"{self.status_symbols['warning']} Device {device} failed, falling back to CPU: {str(device_error)}")
+                    self.model = self.model.to('cpu')
+                if self.progress_callback:
+                    self.progress_callback(f"{self.status_symbols['success']} YOLO model loaded successfully: {resolved_model_path}")
                 return True
         except Exception as e:
             if self.progress_callback:
@@ -371,7 +453,19 @@ class FaceDetectionProcessor:
             self.progress_callback(f"{self.status_symbols['processing']} Running YOLO inference on {os.path.basename(image_path)}...")
         
         # Run inference using predict method (like old_script.py)
-        results = self.model.predict(source=image_path, conf=confidence_threshold, save=save_results, save_txt=save_results, save_conf=save_results)
+        # Ensure Ultralytics writes to a writable directory (avoid default './runs' in read-only filesystems)
+        runs_project_dir = os.path.join(self._get_model_dir(), "runs")
+        os.makedirs(runs_project_dir, exist_ok=True)
+        results = self.model.predict(
+            source=image_path,
+            conf=confidence_threshold,
+            save=save_results,
+            save_txt=save_results,
+            save_conf=save_results,
+            project=runs_project_dir,
+            name="predict",
+            exist_ok=True
+        )
         
         if self.progress_callback:
             self.progress_callback(f"{self.status_symbols['success']} YOLO inference completed for {os.path.basename(image_path)}")
@@ -541,6 +635,8 @@ class FaceDetectionProcessor:
                 self.progress_callback(f"{self.status_symbols['error']} RetinaFace processing error: {str(e)}")
         
         return detections
+    
+    # Removed OpenCV Haar Cascade fallback per product requirements
     
     def _save_image_with_boxes(self, image, detections: List[Dict], image_path: str, result_folder: str):
         """Save image with bounding boxes drawn"""
@@ -785,15 +881,51 @@ class FaceDetectionProcessor:
     
     def get_available_models(self) -> List[str]:
         """Get list of available models (limited to match old_script.py)"""
-        models = [
-            "yolov8n-face.pt",
-            "yolov8m-face.pt",
-            "yolov8l-face.pt",
-            "yolov11m-face.pt",
-            "yolov11l-face.pt"
-        ]
+        models = []
         
-        if RETINAFACE_AVAILABLE:
-            models.append("RetinaFace")
+        # Check if we're in development mode with dual environments
+        import os
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        parent_dir = os.path.dirname(script_dir)
+        yolo_env_path = os.path.join(parent_dir, "yolo-env")
+        retinaface_env_path = os.path.join(parent_dir, "retinaface-env")
+        
+        has_yolo_env = os.path.exists(yolo_env_path)
+        has_retinaface_env = os.path.exists(retinaface_env_path)
+        
+        # In development mode with dual environments, show all models regardless of current environment
+        if has_yolo_env or has_retinaface_env:
+            print(f"Dual environment setup detected - showing all available models", file=sys.stderr)
+            
+            # Always include YOLO models if YOLO environment exists
+            if has_yolo_env:
+                models.extend([
+                    "yolov8n-face.pt",
+                    "yolov8m-face.pt", 
+                    "yolov8l-face.pt",
+                    "yolov11m-face.pt",
+                    "yolov11l-face.pt",
+                    "yolov12l-face.pt"
+                ])
+                print(f"YOLO environment detected at {yolo_env_path}, adding YOLO models", file=sys.stderr)
+            
+            # Always include RetinaFace if RetinaFace environment exists
+            if has_retinaface_env:
+                models.append("RetinaFace")
+                print(f"RetinaFace environment detected at {retinaface_env_path}, adding RetinaFace", file=sys.stderr)
+        else:
+            # Single environment mode - only show models for available frameworks
+            if YOLO_AVAILABLE:
+                models.extend([
+                    "yolov8n-face.pt",
+                    "yolov8m-face.pt", 
+                    "yolov8l-face.pt",
+                    "yolov11m-face.pt",
+                    "yolov11l-face.pt",
+                    "yolov12l-face.pt"
+                ])
+            
+            if RETINAFACE_AVAILABLE:
+                models.append("RetinaFace")
         
         return models
