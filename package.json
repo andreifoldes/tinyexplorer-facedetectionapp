@@ -70,6 +70,12 @@
         "appId": "com.example.tinyexplorer-facedetectionapp",
         "productName": "TinyExplorer FaceDetectionApp",
         "forceCodeSigning": false,
+        "mac": {
+            "identity": null,
+            "type": "distribution",
+            "hardenedRuntime": false,
+            "gatekeeperAssess": false
+        },
 
         "directories": {
             "buildResources": "resources",
@@ -133,15 +139,13 @@
                 {
                     "target": "dmg",
                     "arch": [
-                        "x64",
-                        "arm64"
+                        "x64"
                     ]
                 },
                 {
                     "target": "zip",
                     "arch": [
-                        "x64",
-                        "arm64"
+                        "x64"
                     ]
                 }
             ],
