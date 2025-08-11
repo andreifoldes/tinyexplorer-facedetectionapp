@@ -30,7 +30,9 @@ function checkEnv(name, dir, modules) {
   const missing = [];
   for (const m of modules) {
     try {
-      execSync(`"${py}" - <<'EOF'\nimport importlib, sys\nmod = '${m}'\ntry:\n    importlib.import_module(mod)\nexcept Exception as e:\n    print(f'IMPORT_ERROR::{m}::{e.__class__.__name__}:{e}', file=sys.stderr)\n    sys.exit(1)\nEOF`, { stdio: 'pipe' });
+      // Use -c for cross-platform compatibility instead of heredoc
+      const pythonCode = `import importlib, sys; mod = '${m}'; importlib.import_module(mod)`;
+      execSync(`"${py}" -c "${pythonCode}"`, { stdio: 'pipe' });
     } catch (e) {
       missing.push(m);
     }
