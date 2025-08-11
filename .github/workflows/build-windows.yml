@@ -24,6 +24,16 @@ jobs:
       with:
         python-version: '3.10'
 
+    - name: Force expose python3.10 & set build env vars
+      shell: pwsh
+      run: |
+        Write-Host "Python at $env:pythonLocation\python.exe"
+        & $env:pythonLocation\python.exe --version
+        # actions/setup-python places the interpreter in pythonLocation; set env vars
+        Add-Content -Path $env:GITHUB_ENV -Value "BUNDLED_PYTHON_310=$($env:pythonLocation)\python.exe"
+        Add-Content -Path $env:GITHUB_ENV -Value "RETINAFACE_PYTHON=$($env:pythonLocation)\python.exe"
+        Add-Content -Path $env:GITHUB_ENV -Value "PYTHON_FOR_RETINAFACE=$($env:pythonLocation)\python.exe"
+
     - name: Install Node dependencies
       run: npm ci
 
@@ -33,13 +43,21 @@ jobs:
     - name: Build Python bundle
       run: npm run python-build
       env:
-        RETINAFACE_PYTHON: python
+        RETINAFACE_PYTHON: ${RETINAFACE_PYTHON}
+        BUNDLED_PYTHON_310: ${BUNDLED_PYTHON_310}
+        PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+    - name: Verify Python modules
+      run: npm run python-verify
+      shell: bash
+      env:
         PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
     - name: Build React app
-      run: npx craco build
+      run: |
+        npx craco --version || echo "craco version check failed"
+        npm run react-build
       env:
-        NODE_OPTIONS: "--openssl-legacy-provider"
         CI: false
         GENERATE_SOURCEMAP: false
 

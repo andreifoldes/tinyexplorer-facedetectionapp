@@ -24,19 +24,44 @@ jobs:
       with:
         python-version: '3.10'
 
+    - name: Force expose python3.10 & set build env vars
+      run: |
+        set -e
+        echo "Python at $(which python)"
+        python --version
+        # Create local bin with python3.10 alias if missing
+        if ! command -v python3.10 >/dev/null 2>&1; then
+          mkdir -p "$GITHUB_WORKSPACE/bin"
+          ln -s "$(which python)" "$GITHUB_WORKSPACE/bin/python3.10"
+          echo "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+          echo "Created python3.10 alias in $GITHUB_WORKSPACE/bin";
+        fi
+        echo "BUNDLED_PYTHON_310=$(which python)" >> $GITHUB_ENV
+        echo "RETINAFACE_PYTHON=$(which python)" >> $GITHUB_ENV
+        echo "PYTHON_FOR_RETINAFACE=$(which python)" >> $GITHUB_ENV
+
     - name: Install Node dependencies
       run: npm ci
 
     - name: Build Python bundle
       run: npm run python-build
       env:
-        RETINAFACE_PYTHON: python3.10
+        RETINAFACE_PYTHON: ${RETINAFACE_PYTHON}
+        BUNDLED_PYTHON_310: ${BUNDLED_PYTHON_310}
+        PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+    - name: Verify Python modules
+      run: npm run python-verify
+      env:
         PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
     - name: Build React app
-      run: npx craco build
+      run: |
+        # Verify craco is installed locally
+        npx craco --version || echo "craco version check failed"
+        # Use the npm script which already sets NODE_OPTIONS and flags
+        npm run react-build
       env:
-        NODE_OPTIONS: "--openssl-legacy-provider"
         CI: false
         GENERATE_SOURCEMAP: false
 
