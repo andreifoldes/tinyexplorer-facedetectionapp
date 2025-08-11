@@ -43,9 +43,8 @@ jobs:
     - name: Build Electron main process
       run: |
         npx tsc -p tsconfig.electronMain.json
-        # Build DMG for both Intel (x64) and Apple Silicon (arm64)
+        # Build DMG for Intel (x64) only
         npx electron-builder --mac dmg --x64 --publish=never
-        npx electron-builder --mac dmg --arm64 --publish=never
       env:
         ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
         PYTHON: python3
