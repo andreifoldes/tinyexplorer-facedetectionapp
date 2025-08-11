@@ -6,8 +6,20 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    # Matrix for native builds on both Intel (macos-13) and Apple Silicon (macos-14+)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-13
+            arch: x64
+          - runner: macos-14
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
+
+    env:
+      ARCH: ${{ matrix.arch }}
 
     steps:
     - name: Checkout code
@@ -68,8 +80,12 @@ jobs:
     - name: Build Electron main process
       run: |
         npx tsc -p tsconfig.electronMain.json
-        # Build ZIP only to avoid hdiutil DMG detach issues on macOS runners
-        npx electron-builder --mac zip --publish=never
+        # Build architecture-specific zip (skip dmg for CI reliability)
+        if [ "$ARCH" = "x64" ]; then
+          npx electron-builder --mac zip --x64 --publish=never
+        else
+          npx electron-builder --mac zip --arm64 --publish=never
+        fi
       env:
         ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
         PYTHON: python3
@@ -80,7 +96,7 @@ jobs:
     - name: Upload macOS artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: macos-build
+        name: macos-${{ matrix.arch }}
         path: |
             dist/*.zip
             dist/*.app
