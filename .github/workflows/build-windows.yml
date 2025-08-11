@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
     - name: Checkout code
@@ -99,7 +99,7 @@ jobs:
     - name: Build Electron main process
       run: |
         npx tsc -p tsconfig.electronMain.json
-        npx electron-builder --win --publish=never
+        npx electron-builder --win --x64 --publish=never
       env:
         ELECTRON_BUILDER_CACHE: ${{ runner.temp }}\electron-builder-cache
         PYTHON: python
