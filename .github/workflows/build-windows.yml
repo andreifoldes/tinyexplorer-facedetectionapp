@@ -84,9 +84,14 @@ jobs:
         PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
     - name: Build React app
+      shell: pwsh
       run: |
         npx craco --version || echo "craco version check failed"
-        npm run react-build
+        # Set NODE_OPTIONS for legacy OpenSSL support and run React build
+        $env:NODE_OPTIONS = "--openssl-legacy-provider"
+        $env:CI = "false"
+        $env:GENERATE_SOURCEMAP = "false"
+        npx craco build
       env:
         CI: false
         GENERATE_SOURCEMAP: false
