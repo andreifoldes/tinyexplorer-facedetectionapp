@@ -2,7 +2,6 @@ name: Build Windows
 
 on:
   workflow_dispatch:
-  push:
 
 jobs:
   build:
@@ -37,9 +36,40 @@ jobs:
     - name: Install Node dependencies
       run: npm ci
 
-    - name: Generate ICO from 1024x1024 PNG
-      run: npx --yes png-to-ico resources/icons/1024x1024.png > resources/icon.ico
+    - name: Install ImageMagick
+      run: choco install imagemagick -y
+      
+    - name: Generate square PNG and ICO
       shell: bash
+      run: |
+        # Find the largest available PNG icon
+        for size in 1024 512 256 128; do
+          if [ -f "resources/icons/${size}x${size}.png" ]; then
+            SOURCE_PNG="resources/icons/${size}x${size}.png"
+            echo "Using $SOURCE_PNG as source"
+            break
+          fi
+        done
+        
+        if [ -z "$SOURCE_PNG" ]; then
+          echo "Error: No PNG icon found"
+          exit 1
+        fi
+        
+        # Create a perfectly square 256x256 PNG using ImageMagick
+        echo "Creating square 256x256 PNG from $SOURCE_PNG"
+        magick "$SOURCE_PNG" -gravity center -extent 256x256 -background transparent resources/icons/square-256.png
+        
+        # Generate ICO from the square PNG
+        echo "Generating ICO from square PNG"
+        npx --yes png-to-ico resources/icons/square-256.png > resources/icon.ico
+        
+        # Verify ICO was created
+        if [ ! -f "resources/icon.ico" ]; then
+          echo "Error: Failed to create icon.ico"
+          exit 1
+        fi
+        echo "Successfully created resources/icon.ico"
     - name: Build Python bundle
       run: npm run python-build
       env:
