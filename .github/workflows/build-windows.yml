@@ -27,8 +27,14 @@ jobs:
     - name: Install Node dependencies
       run: npm ci
 
-    - name: Generate ICO from 1024x1024 PNG
-      run: npx --yes png-to-ico resources/icons/1024x1024.png > resources/icon.ico
+    - name: Ensure Windows ICO exists (skip conversion if already present)
+      run: |
+        if [ -f resources/icon.ico ]; then
+          echo "resources/icon.ico already exists; skipping conversion";
+        else
+          echo "resources/icon.ico missing; attempting to generate from resources/icons/1024x1024.png";
+          npx --yes png-to-ico resources/icons/1024x1024.png > resources/icon.ico || echo "ICO generation failed; please provide a valid square PNG or prebuilt ICO"
+        fi
       shell: bash
     - name: Build Python bundle
       run: npm run python-build
@@ -46,7 +52,7 @@ jobs:
     - name: Build Electron main process
       run: |
         npx tsc -p tsconfig.electronMain.json
-        npx electron-builder --win --publish=never
+        npx electron-builder --win --x64 --publish=never
       env:
         ELECTRON_BUILDER_CACHE: ${{ runner.temp }}\electron-builder-cache
         PYTHON: python

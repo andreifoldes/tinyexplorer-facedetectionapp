@@ -153,15 +153,13 @@
                 {
                     "target": "nsis",
                     "arch": [
-                        "x64",
-                        "ia32"
+                        "x64"
                     ]
                 },
                 {
                     "target": "zip",
                     "arch": [
-                        "x64",
-                        "ia32"
+                        "x64"
                     ]
                 }
             ]
