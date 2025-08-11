@@ -90,6 +90,22 @@ jobs:
         ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
         PYTHON: python3
 
+    - name: Remove quarantine attributes from built app
+      run: |
+        # Find and remove quarantine from .app bundles to prevent "damaged app" errors
+        for app in dist/*.app; do
+          if [ -d "$app" ]; then
+            echo "Removing quarantine attributes from: $app"
+            xattr -cr "$app" || true
+            # Verify removal
+            if xattr -l "$app" 2>/dev/null | grep -q "com.apple.quarantine"; then
+              echo "Warning: Quarantine still present on $app"
+            else
+              echo "Successfully cleaned: $app"
+            fi
+          fi
+        done
+
     - name: List build artifacts
       run: ls -la dist/ || echo "No dist directory"
 
