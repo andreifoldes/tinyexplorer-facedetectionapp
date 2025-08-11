@@ -27,18 +27,31 @@ jobs:
     - name: Install Node dependencies
       run: npm ci
 
-    - name: Generate valid Windows ICO from square PNG
+    - name: Generate valid Windows ICO from PNG (pad to square, multi-size)
       run: |
+        set -e
         mkdir -p resources
-        # Prefer known square 1024x1024 PNG
-        SRC="graphics/icons/dragon-1024.png"
+        # Pick source PNG (prefer declared 1024x1024 if present)
+        SRC="resources/icons/1024x1024.png"
         if [ ! -f "$SRC" ]; then
-          # Fallback to project PNG if exists
-          SRC="resources/icons/1024x1024.png"
+          SRC="graphics/icons/dragon-1024.png"
         fi
-        echo "Generating resources/icon.ico from $SRC"
-        npx --yes png-to-ico "$SRC" > resources/icon.ico
-        echo "ICO generated at resources/icon.ico"
+        if [ ! -f "$SRC" ]; then
+          echo "No suitable PNG found at resources/icons/1024x1024.png or graphics/icons/dragon-1024.png" >&2
+          exit 1
+        fi
+        echo "Using source PNG: $SRC"
+        # Ensure ImageMagick is available
+        if command -v magick >/dev/null 2>&1; then
+          echo "Found ImageMagick (magick)"
+          # Pad to square and generate multi-resolution ICO (includes 256x256)
+          magick convert "$SRC" -alpha on -background none -gravity center -resize 1024x1024^ -extent 1024x1024 \
+            -define icon:auto-resize=256,128,64,48,32,16 resources/icon.ico
+          echo "Generated ICO at resources/icon.ico"
+        else
+          echo "ImageMagick not found. Attempting png-to-ico as fallback (requires square PNG)."
+          npx --yes png-to-ico "$SRC" > resources/icon.ico
+        fi
       shell: bash
     - name: Build Python bundle
       run: npm run python-build
