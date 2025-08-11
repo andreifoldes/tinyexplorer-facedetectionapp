@@ -27,14 +27,18 @@ jobs:
     - name: Install Node dependencies
       run: npm ci
 
-    - name: Ensure Windows ICO exists (skip conversion if already present)
+    - name: Generate valid Windows ICO from square PNG
       run: |
-        if [ -f resources/icon.ico ]; then
-          echo "resources/icon.ico already exists; skipping conversion";
-        else
-          echo "resources/icon.ico missing; attempting to generate from resources/icons/1024x1024.png";
-          npx --yes png-to-ico resources/icons/1024x1024.png > resources/icon.ico || echo "ICO generation failed; please provide a valid square PNG or prebuilt ICO"
+        mkdir -p resources
+        # Prefer known square 1024x1024 PNG
+        SRC="graphics/icons/dragon-1024.png"
+        if [ ! -f "$SRC" ]; then
+          # Fallback to project PNG if exists
+          SRC="resources/icons/1024x1024.png"
         fi
+        echo "Generating resources/icon.ico from $SRC"
+        npx --yes png-to-ico "$SRC" > resources/icon.ico
+        echo "ICO generated at resources/icon.ico"
       shell: bash
     - name: Build Python bundle
       run: npm run python-build
