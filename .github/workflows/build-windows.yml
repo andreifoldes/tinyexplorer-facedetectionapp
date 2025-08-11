@@ -73,8 +73,8 @@ jobs:
     - name: Build Python bundle
       run: npm run python-build
       env:
-        RETINAFACE_PYTHON: ${RETINAFACE_PYTHON}
-        BUNDLED_PYTHON_310: ${BUNDLED_PYTHON_310}
+        RETINAFACE_PYTHON: ${{ env.RETINAFACE_PYTHON }}
+        BUNDLED_PYTHON_310: ${{ env.BUNDLED_PYTHON_310 }}
         PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
     - name: Verify Python modules
