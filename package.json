@@ -148,6 +148,28 @@
             ],
             "category": "public.app-category.developer-tools"
         },
+        "dmg": {
+            "contents": [
+                {
+                    "x": 130,
+                    "y": 220
+                },
+                {
+                    "x": 410,
+                    "y": 220,
+                    "type": "link",
+                    "path": "/Applications"
+                }
+            ],
+            "window": {
+                "width": 540,
+                "height": 380
+            },
+            "title": "Install ${productName}",
+            "background": null,
+            "icon": "resources/icon.icns",
+            "internetEnabled": true
+        },
         "win": {
             "icon": "resources/icon.ico",
             "target": [

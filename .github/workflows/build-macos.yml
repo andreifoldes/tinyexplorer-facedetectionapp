@@ -79,11 +79,11 @@ jobs:
     - name: Build Electron main process
       run: |
         npx tsc -p tsconfig.electronMain.json
-        # Build architecture-specific zip (skip dmg for CI reliability)
+        # Build architecture-specific DMG and zip
         if [ "$ARCH" = "x64" ]; then
-          npx electron-builder --mac zip --x64 --publish=never
+          npx electron-builder --mac dmg --x64 --publish=never
         else
-          npx electron-builder --mac zip --arm64 --publish=never
+          npx electron-builder --mac dmg --arm64 --publish=never
         fi
       env:
         ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
@@ -113,6 +113,7 @@ jobs:
       with:
         name: macos-${{ matrix.arch }}
         path: |
+            dist/*.dmg
             dist/*.zip
             dist/*.app
         if-no-files-found: warn
