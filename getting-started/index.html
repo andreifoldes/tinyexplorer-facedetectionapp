@@ -138,29 +138,53 @@
 <p>To install the Face Detection App on your Mac:</p>
 <ol>
 <li><strong>Download the Application</strong></li>
-<li>Visit our <a href="https://github.com/andreifoldes/electron-python-face-recognition/releases">releases page</a></li>
+<li>Visit our <a href="https://github.com/andreifoldes/electron-python-face-recognition/releases">GitHub releases page</a></li>
 <li>
-<p>Download the <code>.dmg</code> file for your architecture:</p>
+<p>Download the <code>.dmg</code> file for your Mac architecture:</p>
 <ul>
 <li><code>TinyExplorer-FaceDetectionApp-mac-x64.dmg</code> for Intel Macs</li>
-<li><code>TinyExplorer-FaceDetectionApp-mac-arm64.dmg</code> for Apple Silicon Macs</li>
+<li><code>TinyExplorer-FaceDetectionApp-mac-arm64.dmg</code> for Apple Silicon Macs (M1/M2/M3)</li>
 </ul>
 </li>
 <li>
 <p><strong>Install the Application</strong></p>
 </li>
-<li>Double-click the downloaded <code>.dmg</code> file</li>
-<li>Drag the "TinyExplorer FaceDetectionApp" to your Applications folder</li>
+<li>Double-click the downloaded <code>.dmg</code> file to mount it</li>
+<li>Drag the "TinyExplorer FaceDetectionApp" from the mounted disk image to your <strong>Applications</strong> folder</li>
 <li>
-<p>Eject the disk image</p>
+<p>Eject the disk image when copying is complete</p>
 </li>
 <li>
-<p><strong>First Launch Security Settings</strong></p>
+<p><strong>Remove macOS Quarantine (Required)</strong></p>
 </li>
-<li>When launching for the first time, macOS may block the app</li>
-<li>Go to <strong>System Preferences → Security &amp; Privacy</strong></li>
-<li>Click "Open Anyway" if the app is blocked</li>
-<li>Alternatively, right-click the app and select "Open"</li>
+</ol>
+<p><strong>Why is this necessary?</strong></p>
+<p>macOS applies a "quarantine" attribute to applications downloaded from the internet as a security measure. This prevents unsigned or unnotarized applications from running and protects users from potentially malicious software. Since our Face Detection App is not signed with an Apple Developer certificate, macOS will block it from launching.</p>
+<p><strong>How to unquarantine the app:</strong></p>
+<p><strong>Method 1: Using Terminal (Recommended)</strong>
+   <code>bash
+   xattr -cr "/Applications/TinyExplorer FaceDetectionApp.app"</code></p>
+<p>Steps:
+   - Open <strong>Terminal</strong> (found in Applications → Utilities)
+   - Copy and paste the command above
+   - Press Enter to execute
+   - The app is now unquarantined and safe to launch</p>
+<p><strong>Method 2: Using System Settings (if Terminal method doesn't work)</strong>
+   - Try to launch the app first (it will be blocked)
+   - Go to <strong>System Settings → Privacy &amp; Security</strong> (or <strong>System Preferences → Security &amp; Privacy</strong> on older macOS)
+   - Look for a message about the blocked app
+   - Click <strong>"Open Anyway"</strong> or <strong>"Allow"</strong>
+   - Confirm by clicking <strong>"Open"</strong> in the dialog that appears</p>
+<p><strong>Method 3: Right-click Override</strong>
+   - Right-click on the app in Applications folder
+   - Select <strong>"Open"</strong> from the context menu
+   - Click <strong>"Open"</strong> in the warning dialog that appears
+   - This bypasses the initial quarantine check</p>
+<ol>
+<li><strong>Verify Installation</strong></li>
+<li>The app should now launch without security warnings</li>
+<li>You'll see the main Face Detection App interface</li>
+<li>The Python environment will initialize on first launch (this may take 30-60 seconds)</li>
 </ol>
 <h2 id="launching-the-application">Launching the Application<a class="headerlink" href="#launching-the-application" title="Permanent link">&para;</a></h2>
 <p>To start the Face Detection App on macOS:</p>
