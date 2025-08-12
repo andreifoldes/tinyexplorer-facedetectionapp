@@ -1,82 +1,62 @@
-# Electron + Python
+# TinyExplorer Face Detection App
 
-This sample shows how to build Python Flask apps that run in Electron. I'm using it to combine Python backends with React frontends but if you prefer to use handle your frontend entirely from Flask that should be simple to do. The Electron main (backend) process spawns a Python Flask webserver and provides a randomly generated authentication token to both the webserver and the Electron renderer (frontend) process for use in authenticating messages sent between the frontend and the webserver. 
+> ⚠️ **BETA STATUS** ⚠️
+> 
+> This software is currently in beta testing. Features and functionality may change as development continues.  
+> **Coming Soon:** Windows version release planned for the near future. Currently available for MacOS only.
 
-The webserver currently exposes a GraphQL endpoint for the frontend to interact with but the backend is just a plain old Flask webserver so you can tweak it to host whatever sort of REST or other Flask web services as might be needed by your application. The React frontend part of the sample is similarly based on a stock create-react-app site, so it should be easy to customize as needed. The only significant embelishments to the stock cra app are (1) the bare minimal amount of https://github.com/sharegate/craco to support hooking into electron without needing to eject the create react app and (2) typescript support, which you don't have to use but I personally can't imagine building a serious javascript project without it so it's there if you need it.
+## Overview
 
-This example builds a stand-alone Electron + Create-React-App + Python application and installer. On Windows it builds the app into `./dist/win-unpacked/My Electron Python App.exe` and the installer into `./dist/My Electron Python App Setup 1.0.0.exe` (OSX and Linux destinations are similar). You can change the name of the application by changing the `name` property in `package.json`.
+The TinyExplorer Face Recognition Toolbox is a user-friendly graphical interface designed specifically for developmental psychologists working with infants and young children. This toolbox integrates state-of-the-art open-source face recognition algorithms into an easy-to-use software package, streamlining the process of analyzing facial data in developmental research.
 
-# Installation
+## Features
 
-Tested with Anaconda Python v3, should work fine with Anaconda Python v2 (should also work fine with whatever python environment you use if you have the correct packages installed).
+- Simple graphical user interface for easy operation
+- Integration of cutting-edge face recognition models
+- Batch processing capabilities for efficient analysis of large datasets
+- Customizable confidence thresholds for detection accuracy
 
-NOTE: On windows you will need to [install anaconda](https://www.anaconda.com/download/) (which installs python and pip) and potentially configure environment variables to add python and/or pip to the path if you don't have it installed already.
 
-```bash
-# start with the obvious step you always need to do with node projects
-npm install
+## Face Recognition Models
 
-# Depending on the packages you install, with Electron projects you may need to do 
-# an npm rebuild to rebuild any included binaries for the current OS. It's probably
-# not needed here but I do it out of habit because its fast and the issues can be
-# a pain to track down if they come up and you dont realize a rebuild is needed
-npm rebuild
-```
+The toolbox currently supports two powerful face recognition models:
 
-**VERY IMPORTANT:** Windows users, if you use VS Code or use Powershell as your shell, you need to type `cmd` inside the VS Code terminal or inside your Powershell window before running the conda commands because conda's environment switcher will not work under Powershell (much of it works, but the critical parts that don't work, like activating evironments, fail silently while appearing to work),
+- YOLOv8: A real-time object detection system that can identify and locate faces in images with high accuracy. YOLOv8 is known for its speed and precision, making it ideal for processing large volumes of data.
+- RetinaFace: A robust face detection model that excels in identifying faces in various poses, scales, and lighting conditions. RetinaFace is particularly useful for detecting faces in challenging environments or when dealing with diverse participant demographics.
 
-```bash
-# install Anaconda if not already installed
+> 🔜 **Coming Soon:** Integration with YOLOv11, the latest version of the YOLO object detection system, offering improved accuracy and performance.
+  
+## Value for Developmental Psychologists
 
-cmd # Only needed if you're coding on Windows in VS Code or Powershell, as discussed above
-conda env create -f environment.yml
-conda activate electron-python-sample
-conda env list 
-# in the list, make sure the electron-python-sample has a * in front
-# indicating it is activated (under Powershell on Windows the activate
-# command fails silently which is why you needed to run the conda commands
-# in a cmd prompt)
+This toolbox addresses several key needs in developmental psychology research:
 
-# run the unpackaged python scripts from a dev build of electron
-npm run start # must be run in the same shell you just conda activated
-```
+- Efficiency: Automates the time-consuming process of manual face detection in video and image data.
+- Accessibility: Provides a user-friendly interface, making advanced face recognition technology accessible to researchers without extensive programming experience.
+- Flexibility: Allows researchers to easily switch between different face recognition models to suit their specific research needs.
+- Reproducibility: Ensures consistent application of face detection criteria across studies, enhancing research reproducibility.
 
-**NOTE** if you see the following error message when trying to `npm run start` it means you did not successfully `conda activate electron-python-sample` in the shell from which you are trying to `npm run start`. On Windows under VS Code that could be because you forgot to go into a `cmd` shell as discussed above before trying to conda activate.
+## Development and Contributions
 
-```
-Traceback (most recent call last):
-  File "python/api.py", line 3, in <module>
-    from graphene import ObjectType, String, Schema
-ModuleNotFoundError: No module named 'graphene'
-```
+This toolbox is actively developed by the Cardiff University BabyLab, a research group dedicated to exploring attentional and motor skills in young children and their impact on learning in everyday settings. We welcome contributions from the developmental psychology community to enhance and expand the capabilities of this toolbox.
 
-```bash
-# use pyinstaller to convert the source code in python/ into an 
-# executable in pythondist/, build the electron app into a subdirectory 
-# of dist/, and run electron-packager to package the electron app as a 
-# platform-specific installer in dist/
-npm run build # must be run in the same shell you just conda activated
+If you have ideas for new features, improvements, or bug fixes, please feel free to:
 
-# double-click to run the either the platform-specific app that is built 
-# into a subdirectory of dist/ or the platform-specific installer that is 
-# built and placed in the dist/ folder
-```
+- Submit a pull request
+- Open an issue with your suggestion
+- Contact us directly with your ideas
 
-# Debugging the Python process
+## Getting Started
 
-To test the Python GraphQL server, in a conda activated terminal window run `npm run python-build`, cd into the newly generated `pythondist` folder, and run `api.exe --apiport 5000 --signingkey devkey` then browse to `http://127.0.0.1:5000/graphiql/` to access a GraphiQL view of the server. For a more detailed example, try `http://127.0.0.1:5000/graphiql/?query={calc(math:"1/2",signingkey:"devkey")}` which works great if you copy and paste into the browser but which is a complex enough URL that it will confuse chrome if you try to click directly on it.
+[Include installation instructions and basic usage guide here]
 
-# Debugging frontend
-use Playwright MCP tools available to you
+## Contact
 
-# Notes
+For more information about this toolbox or to discuss potential collaborations, please contact:
+Cardiff Babylab
+Cardiff University Centre for Human Developmental Science (CUCHDS)
+70 Park Place, Cardiff, CF10 3AT, UK
+Email: <babylab@cardiff.ac.uk>
+Phone: 029 2251 4800
 
-The electron main process both spawns the Python child process and creates the window. The electron renderer process communicates with the python backend via GraphQL web service calls.
-
-The Python script `python/calc.py` provides a function: `calc(text)` that can take text like `1 + 1` and return the result like `2.0`. The calc functionality is exposed as a GraphQL api by `python/api.py`.
-
-The details of how the electron app launches the Python executable is tricky because of differences between packaged and unpackaged scenarios. This complexity is handled by `main/with-python.ts`. If the Electron app is not packaged, the code needs to `spawn` the Python source script. If the Electron app is packaged, it needs to `execFile` the packaged Python executable found in the app.asar. To decide whether the Electron app itself has been packaged for distribution or not, `main/with-python.ts` checks whether the `__dirname` looks like an asar folder or not.
-
-# Important
-
-Killing spawned processes under Electron can be tricky so the electron main process sends a message to the Python server telling it to exit when Electron is shutting down (and yes, that does mean that if you are debugging and control-c to kill the npm process hosting the app you can leave a zombie python process, so it's better to close the app normally by closing the window before killing your npm process).
+[Cardiff BabyLab Website](https://www.cardiff-babylab.com/)
+We look forward to seeing how this toolbox can support and advance your research in developmental psychology!
