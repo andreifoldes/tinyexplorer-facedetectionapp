@@ -51,15 +51,14 @@ function checkEnv(name, dir, modules) {
 
 const report = [];
 
-// Core YOLO environment expected modules
+// Core YOLO environment: importing ultralytics implies its deps are present
 report.push(checkEnv('yolo-env', path.join(distRoot, 'yolo-env'), [
-  'torch', 'torchvision', 'ultralytics', 'cv2', 'numpy', 'PIL'
+  'ultralytics'
 ]));
 
-// RetinaFace env (optional) expected modules
-// Note: TensorFlow import can be slow in CI environment, so we verify other modules
+// RetinaFace env (optional): importing retinaface implies TF and other deps are present
 report.push(checkEnv('retinaface-env', path.join(distRoot, 'retinaface-env'), [
-  'retinaface', 'cv2', 'numpy', 'PIL'
+  'retinaface'
 ]));
 
 let hadFailure = false;

@@ -22,13 +22,18 @@ try:
 except ImportError as e:
     print(f"YOLO/Ultralytics not available: {e}", file=sys.stderr)
 
-# Try to import RetinaFace
+# Try to import RetinaFace (Apple Silicon only)
 try:
-    from retinaface import RetinaFace
-    RETINAFACE_AVAILABLE = True
-    print("RetinaFace loaded successfully", file=sys.stderr)
+    import platform
+    is_darwin = sys.platform == 'darwin'
+    is_arm64 = platform.machine().lower() == 'arm64'
+    if is_darwin and is_arm64:
+        from retinaface import RetinaFace
+        RETINAFACE_AVAILABLE = True
+        print("RetinaFace loaded successfully", file=sys.stderr)
+    else:
+        print("RetinaFace disabled: only supported on Apple Silicon (arm64) Macs", file=sys.stderr)
 except ImportError as e:
-    print(f"RetinaFace not available: {e}", file=sys.stderr)
     print(f"RetinaFace not available: {e}", file=sys.stderr)
 
 class FaceDetectionProcessor:

@@ -196,27 +196,43 @@ async function createVirtualEnvironments(pythonStandaloneDir) {
     });
     
     console.log('Installing RetinaFace dependencies...');
-    
-    // Since we're using x86_64 Python on macOS (for cross-platform compatibility),
-    // we should use the regular tensorflow package, not tensorflow-macos
+
+    // Install platform-appropriate TensorFlow and dependencies
     if (platform === 'darwin') {
-        // Both Intel and Apple Silicon using x86_64 Python
-        // Let RetinaFace handle its own dependencies (tensorflow, numpy, opencv-python, etc.)
-        // This is much simpler and more reliable than managing versions manually
-        const packages = [
-            'flask', 'flask-cors', 
-            '"graphene>=3.0"', '"flask-graphql>=2.0"', 
-            '"retina-face>=0.0.14"'  // This will automatically install tensorflow, opencv-python, numpy, pillow, gdown
-        ];
-        
-        for (const pkg of packages) {
-            execSync(`"${retinafacePython}" -m pip install --no-cache-dir ${pkg}`, {
-                stdio: 'inherit',
-                env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }
-            });
+        const isArm64 = arch === 'arm64' || process.env.ARCH === 'arm64';
+        if (isArm64) {
+            // Apple Silicon: use tensorflow-macos + metal with compatible numpy
+            const packages = [
+                'flask', 'flask-cors',
+                '"graphene>=3.0"', '"flask-graphql>=2.0"',
+                'opencv-python', 'pillow', '"numpy<2.0.0"',
+                'tensorflow-macos==2.15.0', 'tensorflow-metal==1.1.0', 'tf-keras==2.15.0',
+                '"retina-face>=0.0.14"'
+            ];
+            for (const pkg of packages) {
+                execSync(`"${retinafacePython}" -m pip install --no-cache-dir ${pkg}`, {
+                    stdio: 'inherit',
+                    env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }
+                });
+            }
+        } else {
+            // Intel macOS: pin tensorflow CPU 2.15 (requires AVX). If target Macs lack AVX, RetinaFace will not run.
+            const packages = [
+                'flask', 'flask-cors',
+                '"graphene>=3.0"', '"flask-graphql>=2.0"',
+                'opencv-python', 'pillow', '"numpy<2.0.0"',
+                'tensorflow==2.15.0', 'tf-keras==2.15.0',
+                '"retina-face>=0.0.14"'
+            ];
+            for (const pkg of packages) {
+                execSync(`"${retinafacePython}" -m pip install --no-cache-dir ${pkg}`, {
+                    stdio: 'inherit',
+                    env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }
+                });
+            }
         }
     } else {
-        // Other platforms - use requirements file
+        // Other platforms - use requirements file (pins TF accordingly)
         execSync(`"${retinafacePython}" -m pip install --no-cache-dir --upgrade -r "${retinafaceRequirementsPath}"`, {
             stdio: 'inherit',
             env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }

@@ -134,44 +134,25 @@ def setup_python_path(model_type='yolo'):
             print(f"  ❌ Ultralytics not available: {e}", file=sys.stderr)
     
     elif model_type == 'retinaface':
-        try:
-            # Set TensorFlow logging level to suppress AVX warnings
-            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-            
-            import tensorflow as tf
-            print(f"  ✅ TensorFlow {tf.__version__} available", file=sys.stderr)
-            
-            # Check for AVX compatibility using cpuinfo
+        # Extra guard: only support on macOS arm64
+        is_darwin = sys.platform == 'darwin'
+        is_arm64 = (os.uname().machine == 'arm64') if hasattr(os, 'uname') else False
+        if not (is_darwin and is_arm64):
+            print("  ❌ RetinaFace is only supported on Apple Silicon (arm64) Macs. Falling back to YOLO.", file=sys.stderr)
+        else:
             try:
-                import cpuinfo
-                info = cpuinfo.get_cpu_info()
-                cpu_flags = info.get('flags', [])
-                has_avx = any('avx' in flag.lower() for flag in cpu_flags)
-                has_avx2 = any('avx2' in flag.lower() for flag in cpu_flags)
-                
-                if has_avx2:
-                    print(f"  ✅ AVX2 instructions available for optimal TensorFlow performance", file=sys.stderr)
-                elif has_avx:
-                    print(f"  ✅ AVX instructions available for TensorFlow", file=sys.stderr)
-                else:
-                    print(f"  ⚠️ AVX instructions not available - TensorFlow will run with reduced performance", file=sys.stderr)
-                    print(f"  📋 CPU: {info.get('brand_raw', 'Unknown')}", file=sys.stderr)
-            except ImportError:
-                # Fallback to basic platform check
-                import platform
-                cpu_info = platform.processor()
-                print(f"  📋 CPU: {cpu_info}", file=sys.stderr)
-                if 'avx' not in cpu_info.lower() and 'intel' in cpu_info.lower():
-                    print(f"  ⚠️ AVX instructions may not be available - TensorFlow warnings expected", file=sys.stderr)
-                    
-        except ImportError as e:
-            print(f"  ❌ TensorFlow not available: {e}", file=sys.stderr)
-        
-        try:
-            import retina_face
-            print(f"  ✅ RetinaFace available", file=sys.stderr)  
-        except ImportError as e:
-            print(f"  ❌ RetinaFace not available: {e}", file=sys.stderr)
+                # Set TensorFlow logging level to suppress AVX warnings
+                os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+                import tensorflow as tf
+                print(f"  ✅ TensorFlow {tf.__version__} available", file=sys.stderr)
+            except ImportError as e:
+                print(f"  ❌ TensorFlow not available for RetinaFace: {e}", file=sys.stderr)
+            
+            try:
+                import retina_face
+                print(f"  ✅ RetinaFace available", file=sys.stderr)  
+            except ImportError as e:
+                print(f"  ❌ RetinaFace not available: {e}", file=sys.stderr)
     
     # Test common dependencies
     try:

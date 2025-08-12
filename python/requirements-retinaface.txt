@@ -4,6 +4,9 @@ graphene>=3.0
 flask-graphql>=2.0
 opencv-python
 pillow
-numpy
-tensorflow==2.20.0rc0
+# Keep numpy <2 for compatibility with TF 2.15
+numpy<2.0.0
+# Default to TF 2.15 CPU; macOS arm64 overrides to tensorflow-macos in bundler
+tensorflow==2.15.0
+tf-keras==2.15.0
 retina-face>=0.0.14
