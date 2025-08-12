@@ -89,25 +89,38 @@ if (process.platform === 'darwin' && process.arch === 'arm64') {
     // Optional: RetinaFace smoke test - just verify import works, don't run detection
     // (detection might try to download model weights which requires gdown)
     if (process.env.SMOKE_TEST_RETINAFACE === '1') {
-      console.log('[verify-python-modules] RetinaFace import test (retinaface-env)...');
+      console.log('\n==================================================');
+      console.log('[RETINAFACE SMOKE TEST] Starting smoke test...');
+      console.log('==================================================');
       try {
         const smoke = [
           "import os, sys",
           "os.environ['TF_CPP_MIN_LOG_LEVEL']='2'",
-          "# Test that RetinaFace can be imported successfully",
+          "print('[SMOKE TEST] Testing RetinaFace module import...')",
           "from retinaface import RetinaFace",
-          "print('RetinaFace module imported successfully')",
-          "# Verify numpy and cv2 are also available since RetinaFace needs them",
+          "print('[SMOKE TEST] ✅ RetinaFace module imported successfully')",
+          "print('[SMOKE TEST] Testing numpy import...')",
           "import numpy as np",
+          "print('[SMOKE TEST] ✅ numpy imported successfully')",
+          "print('[SMOKE TEST] Testing cv2 (opencv-python) import...')",
           "import cv2",
-          "print('All required modules available for RetinaFace')"
+          "print('[SMOKE TEST] ✅ cv2 imported successfully')",
+          "print('[SMOKE TEST] All required modules are available for RetinaFace')"
         ].join('; ');
         execSync(`"${rfPy}" -c "${smoke}"`, { stdio: 'inherit' });
+        console.log('==================================================');
+        console.log('[RETINAFACE SMOKE TEST] ✅ PASSED - All checks successful');
+        console.log('==================================================\n');
       } catch (e) {
         hadFailure = true;
-        console.error('[verify-python-modules] RetinaFace import test failed in retinaface-env');
+        console.error('==================================================');
+        console.error('[RETINAFACE SMOKE TEST] ❌ FAILED');
+        console.error('Error details:', e.message || 'Unknown error');
         console.error('This might indicate missing dependencies like gdown, opencv-python, or numpy');
+        console.error('==================================================\n');
       }
+    } else {
+      console.log('\n[RETINAFACE SMOKE TEST] Skipped (set SMOKE_TEST_RETINAFACE=1 to enable)\n');
     }
   }
 }
