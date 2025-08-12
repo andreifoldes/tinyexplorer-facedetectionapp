@@ -160,26 +160,25 @@
 </ol>
 <p><strong>Why is this necessary?</strong></p>
 <p>macOS applies a "quarantine" attribute to applications downloaded from the internet as a security measure. This prevents unsigned or unnotarized applications from running and protects users from potentially malicious software. Since our Face Detection App is not signed with an Apple Developer certificate, macOS will block it from launching.</p>
-<p><strong>How to unquarantine the app:</strong></p>
-<p><strong>Method 1: Using Terminal (Recommended)</strong>
-   <code>bash
-   xattr -cr "/Applications/TinyExplorer FaceDetectionApp.app"</code></p>
-<p>Steps:
-   - Open <strong>Terminal</strong> (found in Applications → Utilities)
-   - Copy and paste the command above
-   - Press Enter to execute
-   - The app is now unquarantined and safe to launch</p>
-<p><strong>Method 2: Using System Settings (if Terminal method doesn't work)</strong>
-   - Try to launch the app first (it will be blocked)
-   - Go to <strong>System Settings → Privacy &amp; Security</strong> (or <strong>System Preferences → Security &amp; Privacy</strong> on older macOS)
-   - Look for a message about the blocked app
-   - Click <strong>"Open Anyway"</strong> or <strong>"Allow"</strong>
-   - Confirm by clicking <strong>"Open"</strong> in the dialog that appears</p>
-<p><strong>Method 3: Right-click Override</strong>
-   - Right-click on the app in Applications folder
-   - Select <strong>"Open"</strong> from the context menu
-   - Click <strong>"Open"</strong> in the warning dialog that appears
-   - This bypasses the initial quarantine check</p>
+<p><strong>Using Terminal to unquarantine the app:</strong></p>
+<p>The most reliable method is using the command line. This works consistently across all macOS versions and immediately removes the quarantine attribute.</p>
+<ol>
+<li>Open <strong>Terminal</strong> (Applications → Utilities → Terminal)</li>
+<li>Copy and paste this command:
+      <code>bash
+      xattr -cr "/Applications/TinyExplorer FaceDetectionApp.app"</code></li>
+<li>Press <strong>Enter</strong> to execute the command</li>
+<li>The app is now unquarantined and ready to launch</li>
+</ol>
+<p><strong>What this command does:</strong>
+   - <code>xattr</code> - Extended attributes command
+   - <code>-c</code> - Clear all extended attributes
+   - <code>-r</code> - Recursively apply to all files in the app bundle
+   - The path points to your installed application</p>
+<p><strong>Alternative methods (if you prefer not using Terminal):</strong>
+   - <strong>Right-click method</strong>: Right-click the app → "Open" → confirm in warning dialog
+   - <strong>System Settings</strong>: Launch app (blocked) → System Settings → Privacy &amp; Security → "Open Anyway"</p>
+<p>Note: The command line method is preferred because it's faster, more reliable, and works the same way across all macOS versions.</p>
 <ol>
 <li><strong>Verify Installation</strong></li>
 <li>The app should now launch without security warnings</li>
