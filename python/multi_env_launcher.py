@@ -149,8 +149,8 @@ def setup_python_path(model_type='yolo'):
                 print(f"  ❌ TensorFlow not available for RetinaFace: {e}", file=sys.stderr)
             
             try:
-                import retina_face
-                print(f"  ✅ RetinaFace available", file=sys.stderr)  
+                import retinaface
+                print(f"  ✅ RetinaFace available", file=sys.stderr)
             except ImportError as e:
                 print(f"  ❌ RetinaFace not available: {e}", file=sys.stderr)
     
