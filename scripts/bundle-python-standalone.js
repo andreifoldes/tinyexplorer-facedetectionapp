@@ -189,21 +189,10 @@ async function createVirtualEnvironments(pythonStandaloneDir) {
     
     console.log('Installing RetinaFace dependencies...');
     
-    // Platform-specific TensorFlow installation
-    if (platform === 'darwin' && arch === 'arm64') {
-        // Apple Silicon
-        const packages = [
-            'flask', 'flask-cors', 'graphene>=3.0', 'flask-graphql>=2.0',
-            'opencv-python', 'pillow', 'numpy<2.0.0',
-            'tensorflow-macos==2.15.0', 'tensorflow-metal==1.1.0', 'tf-keras==2.15.0',
-            'retina-face>=0.0.14'
-        ];
-        execSync(`"${retinafacePython}" -m pip install --no-cache-dir ${packages.join(' ')}`, {
-            stdio: 'inherit',
-            env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }
-        });
-    } else if (platform === 'darwin' && arch === 'x64') {
-        // Intel Mac
+    // Since we're using x86_64 Python on macOS (for cross-platform compatibility),
+    // we should use the regular tensorflow package, not tensorflow-macos
+    if (platform === 'darwin') {
+        // Both Intel and Apple Silicon using x86_64 Python
         const packages = [
             'flask', 'flask-cors', 'graphene>=3.0', 'flask-graphql>=2.0',
             'opencv-python', 'pillow', 'numpy<2.0.0',
