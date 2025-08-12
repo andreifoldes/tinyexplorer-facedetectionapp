@@ -193,11 +193,12 @@ async function createVirtualEnvironments(pythonStandaloneDir) {
     // we should use the regular tensorflow package, not tensorflow-macos
     if (platform === 'darwin') {
         // Both Intel and Apple Silicon using x86_64 Python
-        // Let RetinaFace handle its own dependencies - much simpler and more reliable
+        // Let RetinaFace handle its own dependencies (tensorflow, numpy, opencv-python, etc.)
+        // This is much simpler and more reliable than managing versions manually
         const packages = [
-            'flask', 'flask-cors', 'pillow',
+            'flask', 'flask-cors', 
             '"graphene>=3.0"', '"flask-graphql>=2.0"', 
-            '"retina-face>=0.0.14"'
+            '"retina-face>=0.0.14"'  // This will automatically install tensorflow, opencv-python, numpy, pillow, gdown
         ];
         
         for (const pkg of packages) {
