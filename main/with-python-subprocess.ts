@@ -76,6 +76,12 @@ const initializePython = async () => {
         const retinafaceVenvPython3 = path.join(resourcesBase, PY_DIST_FOLDER, "retinaface-env", "bin", process.platform === "win32" ? "python.exe" : "python3");
         const subprocessScriptPath = path.join(resourcesBase, PY_DIST_FOLDER, "python", "subprocess_api.py");
         
+        // Check for bundled standalone Python first
+        const standalonePythonDir = path.join(resourcesBase, PY_DIST_FOLDER, "python-standalone");
+        const standalonePython = process.platform === "win32" 
+            ? path.join(standalonePythonDir, "python.exe")
+            : path.join(standalonePythonDir, "bin", "python3.10");
+        
         // Choose Python executable based on model type - use venv directly
         const pickExisting = (...candidates: string[]): string | "" => {
             for (const c of candidates) {
@@ -92,80 +98,25 @@ const initializePython = async () => {
             pythonPath = pickExisting(yoloVenvPython, yoloVenvPython3);
             scriptPath = subprocessScriptPath;
             try { console.log(`Using YOLO venv Python directly: ${pythonPath}`); } catch (e) {}
-        } else {
-            // Fallback to multi-environment launcher if venv not available
+        } else if (fs.existsSync(standalonePython)) {
+            // Use standalone Python with multi-environment launcher
             const multiEnvLauncherPath = path.join(resourcesBase, PY_DIST_FOLDER, "python", "multi_env_launcher.py");
             
             if (fs.existsSync(multiEnvLauncherPath)) {
+                pythonPath = standalonePython;
                 scriptPath = multiEnvLauncherPath;
-                try { console.log("Fallback to multi-environment launcher"); } catch (e) {}
-                
-                // Determine desired Python version from bundled env to avoid ABI mismatch (e.g., numpy)
-                const desiredVersion = (() => {
-                    try {
-                        const envDir = currentModelType === 'retinaface'
-                            ? path.join(resourcesBase, PY_DIST_FOLDER, 'retinaface-env')
-                            : path.join(resourcesBase, PY_DIST_FOLDER, 'yolo-env');
-                        const libDir = process.platform === 'win32'
-                            ? path.join(envDir, 'Lib')
-                            : path.join(envDir, 'lib');
-                        if (fs.existsSync(libDir)) {
-                            const entries = fs.readdirSync(libDir).filter(n => n.startsWith('python'));
-                            if (entries.length > 0) {
-                                const match = entries[0].match(/python(\d+\.\d+)/);
-                                if (match && match[1]) return match[1];
-                            }
-                        }
-                    } catch (_) {}
-                    return '';
-                })();
-
-                // Build candidates, preferring exact version match if detected
-                const versioned = (suffix: string) => desiredVersion ? suffix.replace('3', desiredVersion) : '';
-                const pythonCandidates = process.platform === "win32" 
-                    ? [
-                        "C\\\:\\Windows\\System32\\python.exe",
-                        desiredVersion ? `python${desiredVersion}.exe` : '',
-                        desiredVersion ? `python${desiredVersion}` : '',
-                        'python3.exe', 'python.exe', 'python', 'python3'
-                    ].filter(Boolean)
-                    : [
-                        desiredVersion ? `/opt/homebrew/bin/python${desiredVersion}` : '',
-                        desiredVersion ? `/usr/local/bin/python${desiredVersion}` : '',
-                        desiredVersion ? `/usr/bin/python${desiredVersion}` : '',
-                        desiredVersion ? `python${desiredVersion}` : '',
-                        "/opt/homebrew/bin/python3",
-                        "/usr/local/bin/python3",
-                        "/usr/bin/python3",
-                        "python3",
-                        "python"
-                    ].filter(Boolean);
-                
-                let foundPython = false;
-                for (const candidate of pythonCandidates) {
-                    try {
-                        const { execSync } = require('child_process');
-                        execSync(`${candidate} --version`, { stdio: 'ignore' });
-                        pythonPath = candidate;
-                        foundPython = true;
-                        try { console.log(`Found system Python executable: ${pythonPath}`); } catch (e) {}
-                        break;
-                    } catch (e) {
-                        // This candidate didn't work, try the next one
-                    }
-                }
-                
-                if (!foundPython) {
-                    try { console.error("No system Python executable found for fallback!"); } catch (e) {}
-                    const required = desiredVersion ? `Python ${desiredVersion}` : 'a compatible Python 3 interpreter';
-                    dialog.showErrorBox("Python Not Found", `Could not find ${required}. Please install it and relaunch the app.`);
-                    return;
-                }
+                try { console.log(`Using bundled standalone Python: ${pythonPath}`); } catch (e) {}
+                try { console.log("With multi-environment launcher"); } catch (e) {}
             } else {
-                try { console.log("Neither venv Python nor launcher found"); } catch (e) {}
+                try { console.log("Multi-environment launcher not found"); } catch (e) {}
                 dialog.showErrorBox("Error", "Python environment not properly packaged");
                 return;
             }
+        } else {
+            // Last resort fallback - should not happen with proper bundling
+            try { console.error("No bundled Python found! This should not happen in packaged mode."); } catch (e) {}
+            dialog.showErrorBox("Python Not Found", "The application was not packaged correctly. Python interpreter is missing.");
+            return;
         }
     } else {
         // Development mode - support dual environment switching
