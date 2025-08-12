@@ -1,8 +1,6 @@
 name: Deploy MkDocs to gh-pages
 
 on:
-  push:
-    branches: [ master, ci/macos-dual-dmg ]
   workflow_dispatch:
 
 permissions:
