@@ -297,10 +297,29 @@ const initializePython = async () => {
             // Don't show dialog for signal-based terminations (negative codes on Unix)
             if (code > 0) {
                 try { console.error(`Python process exited unexpectedly with code ${code}`); } catch (e) {}
+                
+                // Provide more specific error messages based on exit code
+                let errorMessage = `The Python backend stopped unexpectedly (code ${code}).`;
+                let errorDetails = "The application may not function correctly.";
+                
+                if (code === 1) {
+                    errorMessage = "Python Environment Error";
+                    errorDetails = `The Python backend failed to start, likely due to missing dependencies for the ${currentModelType} environment. ` +
+                                 "Check the console output for specific missing packages. You may need to rebuild the Python bundle.";
+                } else if (code === 2) {
+                    errorMessage = "Python Import Error";
+                    errorDetails = "Failed to import required Python modules. Check that all dependencies are properly installed.";
+                } else if (code === 126) {
+                    errorMessage = "Python Permission Error";
+                    errorDetails = "Permission denied executing Python. Check file permissions.";
+                } else if (code === 127) {
+                    errorMessage = "Python Not Found";
+                    errorDetails = "Python executable not found. The application bundle may be corrupted.";
+                }
+                
                 // Only show dialog if app is still running
                 if (!(app as any).isQuitting && Electron.BrowserWindow.getAllWindows().length > 0) {
-                    dialog.showErrorBox("Python Process Error", 
-                        `The Python backend stopped unexpectedly (code ${code}). The application may not function correctly.`);
+                    dialog.showErrorBox(errorMessage, errorDetails);
                 }
             }
         }
@@ -308,16 +327,40 @@ const initializePython = async () => {
         pyProc = null;
     });
     
-    // Wait for Python to be ready
-    await new Promise<void>((resolve) => {
+    // Wait for Python to be ready with timeout
+    await new Promise<void>((resolve, reject) => {
+        const startTime = Date.now();
+        const timeout = 30000; // 30 second timeout
+        
         const checkReady = () => {
+            const elapsed = Date.now() - startTime;
+            
             if (pythonReady) {
                 resolve();
+            } else if (elapsed > timeout) {
+                try { console.error("Python subprocess startup timed out after 30 seconds"); } catch (e) {}
+                reject(new Error("Python subprocess failed to start within 30 seconds"));
+            } else if (pyProc && pyProc.killed) {
+                try { console.error("Python subprocess was killed during startup"); } catch (e) {}
+                reject(new Error("Python subprocess was terminated during startup"));
             } else {
                 setTimeout(checkReady, 100);
             }
         };
         checkReady();
+    }).catch((error) => {
+        try { console.error("Python subprocess initialization failed:", error.message); } catch (e) {}
+        if (!(app as any).isQuitting && Electron.BrowserWindow.getAllWindows().length > 0) {
+            dialog.showErrorBox("Python Initialization Failed", 
+                `Failed to initialize Python backend: ${error.message}\n\n` +
+                "This may be caused by:\n" +
+                "• Missing Python dependencies\n" +
+                "• Incompatible system architecture\n" +
+                "• Corrupted Python environment\n\n" +
+                "Check the console output for detailed error messages."
+            );
+        }
+        throw error;
     });
     
     try { console.log("Python subprocess is ready!"); } catch (e) {}

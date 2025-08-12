@@ -20,6 +20,12 @@ def setup_python_path(model_type='yolo'):
                      (os.path.basename(script_dir) == 'python' and 
                       os.path.basename(os.path.dirname(script_dir)) != 'pythondist'))
     
+    print(f"Environment Detection:", file=sys.stderr)
+    print(f"  Script directory: {script_dir}", file=sys.stderr)
+    print(f"  Parent directory: {parent_dir}", file=sys.stderr) 
+    print(f"  Development mode: {is_development}", file=sys.stderr)
+    print(f"  Model type: {model_type}", file=sys.stderr)
+    
     if is_development:
         # Development mode - Python environment switching handles dependencies via conda
         print(f"Development mode detected - using conda environment for {model_type} models", file=sys.stderr)
@@ -98,11 +104,87 @@ def setup_python_path(model_type='yolo'):
             
         else:
             print(f"Warning: Environment directory not found: {env_dir}", file=sys.stderr)
+            print(f"Available directories in {parent_dir}:", file=sys.stderr)
+            try:
+                for item in os.listdir(parent_dir):
+                    item_path = os.path.join(parent_dir, item)
+                    if os.path.isdir(item_path):
+                        print(f"  {item}/", file=sys.stderr)
+            except Exception as e:
+                print(f"  Error listing directory: {e}", file=sys.stderr)
     
     # Log Python path for debugging
     print(f"Python path setup complete. Script dir: {script_dir}", file=sys.stderr)
     print(f"Python version: {sys.version}", file=sys.stderr)
     print(f"Python executable: {sys.executable}", file=sys.stderr)
+    
+    # Test for critical dependencies based on model type
+    print(f"Testing dependencies for {model_type} environment:", file=sys.stderr)
+    if model_type == 'yolo':
+        try:
+            import torch
+            print(f"  ✅ PyTorch {torch.__version__} available", file=sys.stderr)
+        except ImportError as e:
+            print(f"  ❌ PyTorch not available: {e}", file=sys.stderr)
+        
+        try:
+            import ultralytics
+            print(f"  ✅ Ultralytics {ultralytics.__version__} available", file=sys.stderr)
+        except ImportError as e:
+            print(f"  ❌ Ultralytics not available: {e}", file=sys.stderr)
+    
+    elif model_type == 'retinaface':
+        try:
+            # Set TensorFlow logging level to suppress AVX warnings
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+            
+            import tensorflow as tf
+            print(f"  ✅ TensorFlow {tf.__version__} available", file=sys.stderr)
+            
+            # Check for AVX compatibility using cpuinfo
+            try:
+                import cpuinfo
+                info = cpuinfo.get_cpu_info()
+                cpu_flags = info.get('flags', [])
+                has_avx = any('avx' in flag.lower() for flag in cpu_flags)
+                has_avx2 = any('avx2' in flag.lower() for flag in cpu_flags)
+                
+                if has_avx2:
+                    print(f"  ✅ AVX2 instructions available for optimal TensorFlow performance", file=sys.stderr)
+                elif has_avx:
+                    print(f"  ✅ AVX instructions available for TensorFlow", file=sys.stderr)
+                else:
+                    print(f"  ⚠️ AVX instructions not available - TensorFlow will run with reduced performance", file=sys.stderr)
+                    print(f"  📋 CPU: {info.get('brand_raw', 'Unknown')}", file=sys.stderr)
+            except ImportError:
+                # Fallback to basic platform check
+                import platform
+                cpu_info = platform.processor()
+                print(f"  📋 CPU: {cpu_info}", file=sys.stderr)
+                if 'avx' not in cpu_info.lower() and 'intel' in cpu_info.lower():
+                    print(f"  ⚠️ AVX instructions may not be available - TensorFlow warnings expected", file=sys.stderr)
+                    
+        except ImportError as e:
+            print(f"  ❌ TensorFlow not available: {e}", file=sys.stderr)
+        
+        try:
+            import retina_face
+            print(f"  ✅ RetinaFace available", file=sys.stderr)  
+        except ImportError as e:
+            print(f"  ❌ RetinaFace not available: {e}", file=sys.stderr)
+    
+    # Test common dependencies
+    try:
+        import cv2
+        print(f"  ✅ OpenCV {cv2.__version__} available", file=sys.stderr)
+    except ImportError as e:
+        print(f"  ❌ OpenCV not available: {e}", file=sys.stderr)
+    
+    try:
+        import numpy as np
+        print(f"  ✅ NumPy {np.__version__} available", file=sys.stderr)
+    except ImportError as e:
+        print(f"  ❌ NumPy not available: {e}", file=sys.stderr)
 
 def detect_model_type():
     """Detect model type from environment or default to YOLO"""

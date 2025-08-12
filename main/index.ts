@@ -63,8 +63,16 @@ function createTray() {
     // Fallback to alternative icon locations if primary doesn't exist
     const fs = require('fs');
     if (!fs.existsSync(iconPath)) {
-        // Try alternative paths
+        // Try alternative paths - more extensive fallback list for packaged apps
         const alternatives = [
+            // Standard packaged locations
+            path.join(process.resourcesPath, 'app', 'resources', 'icons', '256x256.png'),
+            path.join(process.resourcesPath, 'app.asar', 'resources', 'icons', '256x256.png'),
+            path.join(process.resourcesPath, 'resources', 'icon.png'),
+            path.join(process.resourcesPath, 'app', 'resources', 'icon.png'),
+            path.join(process.resourcesPath, 'app.asar', 'resources', 'icon.png'),
+            path.join(process.resourcesPath, 'dragon-512.png'),
+            // Development mode fallbacks
             path.join(__dirname, '..', 'resources', 'icon.png'),
             path.join(__dirname, '..', 'graphics', 'icons', 'dragon-256.png'),
             path.join(__dirname, '..', 'graphics', 'dragon.png')
@@ -73,9 +81,16 @@ function createTray() {
         for (const alt of alternatives) {
             if (fs.existsSync(alt)) {
                 iconPath = alt;
-                console.log(`Using fallback icon: ${alt}`);
+                console.log(`Using fallback tray icon: ${alt}`);
                 break;
             }
+        }
+        
+        // If still no icon found, log the attempted paths for debugging
+        if (!fs.existsSync(iconPath)) {
+            console.error(`Warning: Tray icon not found at any location. Attempted paths:`, [iconPath, ...alternatives].join(', '));
+            console.error(`process.resourcesPath: ${process.resourcesPath}`);
+            console.error(`__dirname: ${__dirname}`);
         }
     }
     
