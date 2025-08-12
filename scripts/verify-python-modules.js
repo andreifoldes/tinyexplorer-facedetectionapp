@@ -72,6 +72,66 @@ for (const r of report) {
   }
 }
 
+// Optional: YOLO smoke test - verify ultralytics and dependencies work
+if (process.env.SMOKE_TEST_YOLO === '1') {
+  const yoloPy = venvPython(path.join(distRoot, 'yolo-env'));
+  if (fs.existsSync(yoloPy)) {
+    console.log('\n==================================================');
+    console.log('[YOLO SMOKE TEST] Starting smoke test...');
+    console.log('==================================================');
+    try {
+      const smoke = [
+        "import os, sys",
+        "os.environ['YOLO_VERBOSE']='False'",
+        "print('[SMOKE TEST] Testing ultralytics module import...')",
+        "from ultralytics import YOLO",
+        "print('[SMOKE TEST] ✅ ultralytics (YOLO) module imported successfully')",
+        "print('[SMOKE TEST] Testing torch import...')",
+        "import torch",
+        "print(f'[SMOKE TEST] ✅ torch {torch.__version__} imported successfully')",
+        "print('[SMOKE TEST] Testing torchvision import...')",
+        "import torchvision",
+        "print('[SMOKE TEST] ✅ torchvision imported successfully')",
+        "print('[SMOKE TEST] Testing numpy import...')",
+        "import numpy as np",
+        "print('[SMOKE TEST] ✅ numpy imported successfully')",
+        "print('[SMOKE TEST] Testing cv2 (opencv-python) import...')",
+        "import cv2",
+        "print('[SMOKE TEST] ✅ cv2 imported successfully')",
+        "print('[SMOKE TEST] Testing PIL import...')",
+        "from PIL import Image",
+        "print('[SMOKE TEST] ✅ PIL (Pillow) imported successfully')",
+        "print('[SMOKE TEST] All required modules are available for YOLO')",
+        "# Quick YOLO instantiation test (won't download models)",
+        "print('[SMOKE TEST] Testing YOLO instantiation...')",
+        "try:",
+        "    model = YOLO('yolov8n.pt', task='detect', verbose=False)",
+        "    print('[SMOKE TEST] ✅ YOLO model can be instantiated')",
+        "except Exception as e:",
+        "    if 'does not exist' in str(e) or 'not found' in str(e):",
+        "        print('[SMOKE TEST] ✅ YOLO instantiation works (model file not present, which is expected)')",
+        "    else:",
+        "        raise e"
+      ].join('; ');
+      execSync(`"${yoloPy}" -c "${smoke}"`, { stdio: 'inherit' });
+      console.log('==================================================');
+      console.log('[YOLO SMOKE TEST] ✅ PASSED - All checks successful');
+      console.log('==================================================\n');
+    } catch (e) {
+      hadFailure = true;
+      console.error('==================================================');
+      console.error('[YOLO SMOKE TEST] ❌ FAILED');
+      console.error('Error details:', e.message || 'Unknown error');
+      console.error('This might indicate missing dependencies like ultralytics, torch, torchvision, opencv-python, or numpy');
+      console.error('==================================================\n');
+    }
+  } else {
+    console.log('\n[YOLO SMOKE TEST] Skipped (yolo-env not found)\n');
+  }
+} else {
+  console.log('\n[YOLO SMOKE TEST] Skipped (set SMOKE_TEST_YOLO=1 to enable)\n');
+}
+
 // On macOS arm64, run a brief TensorFlow sanity check to catch plugin/version issues (e.g., metal plugin)
 if (process.platform === 'darwin' && process.arch === 'arm64') {
   const rfPy = venvPython(path.join(distRoot, 'retinaface-env'));
