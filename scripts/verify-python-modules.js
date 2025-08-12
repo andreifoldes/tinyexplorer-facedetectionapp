@@ -77,11 +77,8 @@ if (process.platform === 'darwin' && process.arch === 'arm64') {
   const rfPy = venvPython(path.join(distRoot, 'retinaface-env'));
   if (fs.existsSync(rfPy)) {
     try {
-      const code = [
-        'import tensorflow as tf',
-        'print("TF version:", tf.__version__)',
-        'print("Devices:", tf.config.list_physical_devices())'
-      ].join('; ');
+      // Use only single quotes inside Python code so we can wrap with double quotes safely
+      const code = "import tensorflow as tf; print('TF version:', tf.__version__); print('Devices:', tf.config.list_physical_devices())";
       console.log('[verify-python-modules] TensorFlow sanity check (retinaface-env)...');
       execSync(`"${rfPy}" -c "${code}"`, { stdio: 'inherit' });
     } catch (e) {
