@@ -193,28 +193,13 @@ async function createVirtualEnvironments(pythonStandaloneDir) {
     // we should use the regular tensorflow package, not tensorflow-macos
     if (platform === 'darwin') {
         // Both Intel and Apple Silicon using x86_64 Python
-        // Install packages one by one to avoid shell parsing issues
+        // Let RetinaFace handle its own dependencies - much simpler and more reliable
         const packages = [
-            'flask', 'flask-cors', 'opencv-python', 'pillow', 
-            'tensorflow==2.15.0', 'tf-keras==2.15.0',
-            'retina-face>=0.0.14'
+            'flask', 'flask-cors', 'pillow',
+            '"graphene>=3.0"', '"flask-graphql>=2.0"', 
+            '"retina-face>=0.0.14"'
         ];
         
-        // Install packages with special characters separately
-        execSync(`"${retinafacePython}" -m pip install --no-cache-dir "numpy<2.0.0"`, {
-            stdio: 'inherit',
-            env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }
-        });
-        execSync(`"${retinafacePython}" -m pip install --no-cache-dir "graphene>=3.0"`, {
-            stdio: 'inherit',
-            env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }
-        });
-        execSync(`"${retinafacePython}" -m pip install --no-cache-dir "flask-graphql>=2.0"`, {
-            stdio: 'inherit',
-            env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }
-        });
-        
-        // Install regular packages
         for (const pkg of packages) {
             execSync(`"${retinafacePython}" -m pip install --no-cache-dir ${pkg}`, {
                 stdio: 'inherit',

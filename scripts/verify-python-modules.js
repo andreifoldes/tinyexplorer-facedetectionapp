@@ -35,6 +35,15 @@ function checkEnv(name, dir, modules) {
       execSync(`"${py}" -c "${pythonCode}"`, { stdio: 'pipe' });
     } catch (e) {
       missing.push(m);
+      // For tensorflow specifically, provide more debugging info
+      if (m === 'tensorflow') {
+        try {
+          const debugOutput = execSync(`"${py}" -c "import sys; print('Python path:', sys.path); import tensorflow as tf; print('TF version:', tf.__version__)"`, { stdio: 'pipe', encoding: 'utf-8' });
+          console.log(`Tensorflow debug info for ${name}:`, debugOutput);
+        } catch (debugError) {
+          console.log(`Tensorflow import error for ${name}:`, debugError.stderr ? debugError.stderr.toString() : debugError.message);
+        }
+      }
     }
   }
   return { name, missing, skipped: false };
