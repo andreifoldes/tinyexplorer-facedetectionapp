@@ -85,6 +85,26 @@ if (process.platform === 'darwin' && process.arch === 'arm64') {
       hadFailure = true;
       console.error('[verify-python-modules] TensorFlow sanity check failed in retinaface-env');
     }
+
+    // Optional: RetinaFace smoke test that runs a minimal detect on a blank image
+    if (process.env.SMOKE_TEST_RETINAFACE === '1') {
+      console.log('[verify-python-modules] RetinaFace smoke test (retinaface-env)...');
+      try {
+        const smoke = [
+          "import os, sys, numpy as np",
+          "os.environ['TF_CPP_MIN_LOG_LEVEL']='2'",
+          "from retinaface import RetinaFace",
+          "img = np.zeros((128,128,3), dtype=np.uint8)",
+          // Call detect_faces; expect empty or dict; ensure no exception from pipeline
+          "res = RetinaFace.detect_faces(img)",
+          "print('RetinaFace detect result type:', type(res).__name__)"
+        ].join('; ');
+        execSync(`"${rfPy}" -c "${smoke}"`, { stdio: 'inherit' });
+      } catch (e) {
+        hadFailure = true;
+        console.error('[verify-python-modules] RetinaFace smoke test failed in retinaface-env');
+      }
+    }
   }
 }
 
