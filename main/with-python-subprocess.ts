@@ -218,14 +218,14 @@ const initializePython = async () => {
     const resourcesBase = (__dirname.indexOf("app.asar") > 0)
         ? process.resourcesPath
         : path.join(__dirname, "..");
-    const bundledDepsDir = path.join(resourcesBase, PY_DIST_FOLDER, "python-deps");
     const bundledPyDir = path.join(resourcesBase, PY_DIST_FOLDER, "python");
 
     const spawnEnv = {
         ...process.env,
         // Ensure we don't pick up user's PYTHONPATH or user site-packages
         PYTHONNOUSERSITE: "1",
-        PYTHONPATH: `${bundledDepsDir}:${bundledPyDir}`,
+        // Only expose our app's python scripts directory; do not inject yolo-env via python-deps
+        PYTHONPATH: `${bundledPyDir}`,
         // Detach from any active virtual environment from the user's shell
         VIRTUAL_ENV: "",
         PYTHONHOME: "",

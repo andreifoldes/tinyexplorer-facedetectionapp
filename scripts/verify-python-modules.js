@@ -56,10 +56,10 @@ report.push(checkEnv('yolo-env', path.join(distRoot, 'yolo-env'), [
   'ultralytics'
 ]));
 
-// RetinaFace env (optional): importing retinaface implies TF and other deps are present
-report.push(checkEnv('retinaface-env', path.join(distRoot, 'retinaface-env'), [
-  'retinaface'
-]));
+// RetinaFace env (optional): On macOS arm64, also import tensorflow to catch plugin/version issues early
+const isDarwinArm64 = process.platform === 'darwin' && process.arch === 'arm64';
+const retinafaceChecks = isDarwinArm64 ? ['retinaface', 'tensorflow'] : ['retinaface'];
+report.push(checkEnv('retinaface-env', path.join(distRoot, 'retinaface-env'), retinafaceChecks));
 
 let hadFailure = false;
 for (const r of report) {
@@ -69,6 +69,25 @@ for (const r of report) {
     console.error(`Environment ${r.name} is missing modules: ${r.missing.join(', ')}`);
   } else {
     console.log(`Environment ${r.name} OK (all required modules importable).`);
+  }
+}
+
+// On macOS arm64, run a brief TensorFlow sanity check to catch plugin/version issues (e.g., metal plugin)
+if (process.platform === 'darwin' && process.arch === 'arm64') {
+  const rfPy = venvPython(path.join(distRoot, 'retinaface-env'));
+  if (fs.existsSync(rfPy)) {
+    try {
+      const code = [
+        'import tensorflow as tf',
+        'print("TF version:", tf.__version__)',
+        'print("Devices:", tf.config.list_physical_devices())'
+      ].join('; ');
+      console.log('[verify-python-modules] TensorFlow sanity check (retinaface-env)...');
+      execSync(`"${rfPy}" -c "${code}"`, { stdio: 'inherit' });
+    } catch (e) {
+      hadFailure = true;
+      console.error('[verify-python-modules] TensorFlow sanity check failed in retinaface-env');
+    }
   }
 }
 
