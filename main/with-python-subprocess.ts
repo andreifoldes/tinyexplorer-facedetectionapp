@@ -273,7 +273,22 @@ const initializePython = async () => {
     if (pyProc.stderr) {
         pyProc.stderr.on('data', (data: Buffer) => {
             try {
-                console.warn('Python stderr:', data.toString());
+                const text = data.toString();
+                console.warn('Python stderr:', text);
+                // Forward stderr lines to renderer(s) so UI can display startup progress
+                const allWindows = Electron.BrowserWindow.getAllWindows();
+                const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+                if (lines.length > 0) {
+                    allWindows.forEach(window => {
+                        lines.forEach(line => {
+                            window.webContents.send('python-event', {
+                                type: 'stderr',
+                                data: line,
+                                timestamp: Date.now()
+                            });
+                        });
+                    });
+                }
             } catch (e) {
                 // Ignore EPIPE errors when process is shutting down
             }
@@ -324,25 +339,45 @@ const initializePython = async () => {
         pyProc = null;
     });
     
-    // Wait for Python to be ready with timeout
+    // Wait for Python to be ready with a soft timeout (warn once, keep waiting)
     await new Promise<void>((resolve, reject) => {
         const startTime = Date.now();
-        const timeout = 30000; // 30 second timeout
-        
+        const softTimeoutMs = 30000; // 30s soft warning for slow startups
+        let warnedSlowStartup = false;
+
+        const emitStatus = (message: string) => {
+            const allWindows = Electron.BrowserWindow.getAllWindows();
+            allWindows.forEach(window => {
+                window.webContents.send('pythonStatus', {
+                    ready: pythonReady,
+                    pid: pyProc ? pyProc.pid : undefined,
+                    message,
+                    elapsedMs: Date.now() - startTime
+                });
+            });
+        };
+
         const checkReady = () => {
             const elapsed = Date.now() - startTime;
-            
+
             if (pythonReady) {
                 resolve();
-            } else if (elapsed > timeout) {
-                try { console.error("Python subprocess startup timed out after 30 seconds"); } catch (e) {}
-                reject(new Error("Python subprocess failed to start within 30 seconds"));
-            } else if (pyProc && pyProc.killed) {
+                return;
+            }
+
+            if (elapsed > softTimeoutMs && !warnedSlowStartup) {
+                warnedSlowStartup = true;
+                try { console.warn(`Python subprocess startup is taking longer than ${softTimeoutMs / 1000}s; continuing to wait...`); } catch (e) {}
+                emitStatus(`Python startup taking > ${softTimeoutMs / 1000}s; still waiting...`);
+            }
+
+            if (pyProc && pyProc.killed) {
                 try { console.error("Python subprocess was killed during startup"); } catch (e) {}
                 reject(new Error("Python subprocess was terminated during startup"));
-            } else {
-                setTimeout(checkReady, 100);
+                return;
             }
+
+            setTimeout(checkReady, 100);
         };
         checkReady();
     }).catch((error) => {
