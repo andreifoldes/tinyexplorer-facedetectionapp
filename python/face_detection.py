@@ -143,7 +143,7 @@ class FaceDetectionProcessor:
                 self.model_type = "RetinaFace"
                 self.current_model_path = model_path
                 
-                 # Ensure RetinaFace is actually available before proceeding
+                # Ensure RetinaFace is actually available before proceeding
                 if not RETINAFACE_AVAILABLE:
                     if self.progress_callback:
                         self.progress_callback(f"{self.status_symbols['error']} RetinaFace is not available in this environment")
