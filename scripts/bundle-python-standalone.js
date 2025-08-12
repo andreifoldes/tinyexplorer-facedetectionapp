@@ -62,13 +62,21 @@ function downloadFile(url, destPath) {
 function getPythonStandaloneUrl() {
     // Using python-build-standalone releases from indygreg
     // These are relocatable Python distributions
-    const baseUrl = 'https://github.com/indygreg/python-build-standalone/releases/download/20241016/';
+    const baseUrl = 'https://github.com/astral-sh/python-build-standalone/releases/download/20241016/';
     
     if (platform === 'darwin') {
-        // For macOS, we need to handle both arm64 (Apple Silicon) and x86_64 (Intel)
-        // Since we're building for x64 in CI, use x86_64 which can run on both via Rosetta
-        const filename = 'cpython-3.10.15+20241016-x86_64-apple-darwin-install_only_stripped.tar.gz';
-        return baseUrl + filename;
+        // For macOS, handle both arm64 (Apple Silicon) and x86_64 (Intel)
+        // Use the environment ARCH variable or detect from process.arch
+        const targetArch = process.env.ARCH || process.arch;
+        
+        if (targetArch === 'arm64') {
+            const filename = 'cpython-3.10.15+20241016-aarch64-apple-darwin-install_only_stripped.tar.gz';
+            return baseUrl + filename;
+        } else {
+            // Default to x86_64 for Intel Macs
+            const filename = 'cpython-3.10.15+20241016-x86_64-apple-darwin-install_only_stripped.tar.gz';
+            return baseUrl + filename;
+        }
     } else if (platform === 'linux') {
         const filename = 'cpython-3.10.15+20241016-x86_64_v3-unknown-linux-gnu-install_only_stripped.tar.gz';
         return baseUrl + filename;
