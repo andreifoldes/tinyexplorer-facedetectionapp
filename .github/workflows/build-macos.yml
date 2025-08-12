@@ -92,12 +92,8 @@ jobs:
     - name: Build Electron main process
       run: |
         npx tsc -p tsconfig.electronMain.json
-        # Build architecture-specific DMG and zip
-        if [ "$ARCH" = "x64" ]; then
-          npx electron-builder --mac dmg --x64 --publish=never
-        else
-          npx electron-builder --mac dmg --arm64 --publish=never
-        fi
+        # Build DMG for Intel (x64) only
+        npx electron-builder --mac dmg --x64 --publish=never
       env:
         ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
         PYTHON: python3
@@ -128,5 +124,6 @@ jobs:
         path: |
             dist/*.dmg
             dist/*.zip
+            dist/*.dmg
             dist/*.app
         if-no-files-found: warn

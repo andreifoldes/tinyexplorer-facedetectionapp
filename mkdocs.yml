@@ -1,0 +1,19 @@
+site_name: Electron + Python Face Recognition
+site_description: Demo documentation for the Electron + Python Face Recognition project
+site_url: https://andreifoldes.github.io/electron-python-face-recognition/
+repo_url: https://github.com/andreifoldes/electron-python-face-recognition
+repo_name: andreifoldes/electron-python-face-recognition
+
+theme:
+  name: mkdocs
+
+nav:
+  - Home: index.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
