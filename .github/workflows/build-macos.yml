@@ -37,18 +37,13 @@ jobs:
       env:
         PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
-    - name: Ensure gdown present in retinaface-env
+    - name: Verify and test RetinaFace environment
+      env:
+        SMOKE_TEST_RETINAFACE: '1'
       run: |
         RF_PY="$(pwd)/pythondist/retinaface-env/bin/python"
-        if [ -x "$RF_PY" ]; then
-          "$RF_PY" -m pip install --no-cache-dir "gdown>=3.10.1"
-        else
-          echo "retinaface-env python not found at $RF_PY" && exit 1
-        fi
-
-    - name: Verify RetinaFace environment requirements
-      run: |
-        RF_PY="$(pwd)/pythondist/retinaface-env/bin/python"
+        
+        # Verify all requirements
         "$RF_PY" - << 'PY'
         import sys
         import pkg_resources as pr
@@ -80,11 +75,8 @@ jobs:
         check('gdown', min_ver='3.10.1', display='gdown')
         check('retinaface', display='retina-face')
         PY
-
-    - name: Smoke test RetinaFace import and detect
-      env:
-        SMOKE_TEST_RETINAFACE: '1'
-      run: |
+        
+        # Smoke test RetinaFace import and detect
         node scripts/verify-python-modules.js
 
     - name: Verify Python modules

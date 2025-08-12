@@ -204,7 +204,7 @@ async function createVirtualEnvironments(pythonStandaloneDir) {
             // Apple Silicon: install TF stack and pin numpy in ONE transaction, then install retina-face without deps
             execSync(`"${retinafacePython}" -m pip install --no-cache-dir --upgrade ` +
                      `flask flask-cors "graphene>=3.0" "flask-graphql>=2.0" ` +
-                     `opencv-python pillow "numpy<2.0.0" ` +
+                     `opencv-python pillow "numpy<2.0.0" "gdown>=3.10.1" ` +
                      `tensorflow-macos==2.15.0 tensorflow-metal==1.1.0 tf-keras==2.15.0`, {
                 stdio: 'inherit',
                 env: { ...process.env, PIP_DISABLE_PIP_VERSION_CHECK: '1' }
@@ -219,7 +219,7 @@ async function createVirtualEnvironments(pythonStandaloneDir) {
             const packages = [
                 'flask', 'flask-cors',
                 '"graphene>=3.0"', '"flask-graphql>=2.0"',
-                'opencv-python', 'pillow', '"numpy<2.0.0"',
+                'opencv-python', 'pillow', '"numpy<2.0.0"', '"gdown>=3.10.1"',
                 'tensorflow==2.15.0', 'tf-keras==2.15.0',
                 '"retina-face>=0.0.14"'
             ];

@@ -143,6 +143,13 @@ class FaceDetectionProcessor:
                 self.model_type = "RetinaFace"
                 self.current_model_path = model_path
                 
+                 # Ensure RetinaFace is actually available before proceeding
+                if not RETINAFACE_AVAILABLE:
+                    if self.progress_callback:
+                        self.progress_callback(f"{self.status_symbols['error']} RetinaFace is not available in this environment")
+                        self.progress_callback(f"{self.status_symbols['info']} Please use YOLO model or switch to an Apple Silicon Mac (arm64)")
+                    return False
+                
                 # RetinaFace doesn't need explicit loading - it loads models on first use
                 # Just verify it's available and working
                 try:
@@ -156,6 +163,7 @@ class FaceDetectionProcessor:
                 if self.progress_callback:
                     self.progress_callback(f"{self.status_symbols['success']} RetinaFace model ready")
                 return True
+                
             else:
                 self.model_type = "YOLO"
                 self.current_model_path = model_path
@@ -588,8 +596,11 @@ class FaceDetectionProcessor:
             if self.progress_callback:
                 self.progress_callback(f"{self.status_symbols['processing']} Running RetinaFace inference on {os.path.basename(image_path)}...")
             
+            # Import locally to avoid NameError when global import is unavailable
+            from retinaface import RetinaFace as _RetinaFace
+            
             # Use RetinaFace for detection - it expects image path or numpy array
-            face_detections = RetinaFace.detect_faces(image_path, threshold=confidence_threshold)
+            face_detections = _RetinaFace.detect_faces(image_path, threshold=confidence_threshold)
             
             if self.progress_callback:
                 self.progress_callback(f"{self.status_symbols['success']} RetinaFace inference completed for {os.path.basename(image_path)}")
