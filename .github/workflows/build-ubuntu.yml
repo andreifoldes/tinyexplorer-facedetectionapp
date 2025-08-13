@@ -39,7 +39,7 @@ jobs:
         echo "PYTHON_FOR_RETINAFACE=$(which python)" >> $GITHUB_ENV
 
     - name: Install Node dependencies
-      run: npm ci
+      run: npm install
 
     - name: Build Python bundle
       run: npm run python-build

@@ -34,7 +34,7 @@ jobs:
         Add-Content -Path $env:GITHUB_ENV -Value "PYTHON_FOR_RETINAFACE=$($env:pythonLocation)\python.exe"
 
     - name: Install Node dependencies
-      run: npm ci
+      run: npm install
 
     - name: Install ImageMagick
       run: choco install imagemagick -y
