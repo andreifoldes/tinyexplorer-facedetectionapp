@@ -80,12 +80,12 @@ If no release exists for your system or the installer doesn’t work, you can bu
 
 ## Contact
 
-For more information about this toolbox or to discuss potential collaborations, please contact:
-Cardiff Babylab
-Cardiff University Centre for Human Developmental Science (CUCHDS)
-70 Park Place, Cardiff, CF10 3AT, UK
-Email: <babylab@cardiff.ac.uk>
-Phone: 029 2251 4800
+For more information or collaboration inquiries, please contact:
 
-[Cardiff BabyLab Website](https://www.cardiff-babylab.com/)
+- Organization: Cardiff BabyLab, Cardiff University Centre for Human Developmental Science (CUCHDS)
+- Address: 70 Park Place, Cardiff, CF10 3AT, UK
+- Email: [babylab@cardiff.ac.uk](mailto:babylab@cardiff.ac.uk)
+- Phone: 029 2251 4800
+- Website: [cardiff-babylab.com](https://www.cardiff-babylab.com/)
+
 We look forward to seeing how this toolbox can support and advance your research in developmental psychology!
