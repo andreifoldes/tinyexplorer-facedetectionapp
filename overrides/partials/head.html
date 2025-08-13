@@ -1,0 +1,21 @@
+{% set _title = page.meta.title or page.title %}
+{% set _desc = page.meta.description or config.site_description %}
+{% set _img = page.meta.image or 'assets/images/dragon.png' %}
+{% if not _img.startswith('http') %}
+  {% set _img = config.site_url.rstrip('/') ~ '/' ~ _img.lstrip('/') %}
+{% endif %}
+
+<!-- Open Graph / Facebook / Teams -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="{{ config.site_name }}" />
+<meta property="og:title" content="{{ _title }}" />
+<meta property="og:description" content="{{ _desc }}" />
+<meta property="og:url" content="{{ page.canonical_url }}" />
+<meta property="og:image" content="{{ _img }}" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="{{ _title }}" />
+<meta name="twitter:description" content="{{ _desc }}" />
+<meta name="twitter:image" content="{{ _img }}" />
+
