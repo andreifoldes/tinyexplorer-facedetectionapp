@@ -1,11 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://andreifoldes.github.io/electron-python-face-recognition/</loc>
-         <lastmod>2025-08-12</lastmod>
+         <loc>https://andreifoldes.github.io/tinyexplorer-facedetectionapp/</loc>
+         <lastmod>2025-08-13</lastmod>
     </url>
     <url>
-         <loc>https://andreifoldes.github.io/electron-python-face-recognition/getting-started/</loc>
-         <lastmod>2025-08-12</lastmod>
+         <loc>https://andreifoldes.github.io/tinyexplorer-facedetectionapp/advanced-options/</loc>
+         <lastmod>2025-08-13</lastmod>
+    </url>
+    <url>
+         <loc>https://andreifoldes.github.io/tinyexplorer-facedetectionapp/getting-started/</loc>
+         <lastmod>2025-08-13</lastmod>
+    </url>
+    <url>
+         <loc>https://andreifoldes.github.io/tinyexplorer-facedetectionapp/main-features/</loc>
+         <lastmod>2025-08-13</lastmod>
+    </url>
+    <url>
+         <loc>https://andreifoldes.github.io/tinyexplorer-facedetectionapp/support/</loc>
+         <lastmod>2025-08-13</lastmod>
+    </url>
+    <url>
+         <loc>https://andreifoldes.github.io/tinyexplorer-facedetectionapp/troubleshooting/</loc>
+         <lastmod>2025-08-13</lastmod>
+    </url>
+    <url>
+         <loc>https://andreifoldes.github.io/tinyexplorer-facedetectionapp/understanding-results/</loc>
+         <lastmod>2025-08-13</lastmod>
     </url>
 </urlset>
