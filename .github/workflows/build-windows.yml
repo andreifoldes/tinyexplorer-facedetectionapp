@@ -125,6 +125,49 @@ jobs:
         # Smoke test YOLO import and basic functionality
         node scripts/verify-python-modules.js
 
+    - name: Verify and test RetinaFace environment
+      shell: bash
+      env:
+        SMOKE_TEST_RETINAFACE: '1'
+      run: |
+        RF_PY="$(pwd)/pythondist/retinaface-env/Scripts/python.exe"
+        
+        # Verify all requirements
+        "$RF_PY" - <<'PY'
+        import sys
+        import pkg_resources as pr
+
+        def check(mod_name, attr='__version__', min_ver=None, display=None):
+            try:
+                if mod_name == 'cv2':
+                    import cv2
+                    ver = cv2.__version__
+                elif mod_name == 'PIL':
+                    import PIL
+                    ver = PIL.__version__
+                else:
+                    mod = __import__(mod_name)
+                    ver = getattr(mod, attr, '0')
+                name = display or mod_name
+                if min_ver and pr.parse_version(ver) < pr.parse_version(min_ver):
+                    print(f"{name} {ver} < required {min_ver}")
+                    sys.exit(1)
+                print(f"OK: {name} {ver}")
+            except Exception as e:
+                print(f"FAIL: {mod_name} not usable: {e}")
+                sys.exit(1)
+
+        check('numpy', min_ver='1.14.0', display='numpy')
+        check('PIL',   min_ver='5.2.0',  display='Pillow')
+        check('cv2',   min_ver='3.4.4',  display='opencv-python')
+        check('tensorflow', min_ver='1.9.0', display='tensorflow')
+        check('gdown', min_ver='3.10.1', display='gdown')
+        check('retinaface', display='retina-face')
+        PY
+        
+        # Smoke test RetinaFace import and detect
+        node scripts/verify-python-modules.js
+
     - name: Verify Python modules
       run: npm run python-verify
       shell: pwsh
