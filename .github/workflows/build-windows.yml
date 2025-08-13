@@ -82,7 +82,7 @@ jobs:
       env:
         SMOKE_TEST_YOLO: '1'
       run: |
-        YOLO_PY="$(pwd)/pythondist/yolo-env/python.exe"
+        YOLO_PY="$(pwd)/pythondist/yolo-env/Scripts/python.exe"
 
         # Verify core YOLO requirements
         "$YOLO_PY" - <<'PY'
