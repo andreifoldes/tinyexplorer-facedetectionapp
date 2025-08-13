@@ -63,7 +63,7 @@ If you have ideas for new features, improvements, or bug fixes, please feel free
 ## Getting Started
 
 ### Install a Prebuilt Release (recommended)
-- Download the latest installer for your OS from the [Releases page](https://github.com/andreifoldes/electron-python-face-recognition/releases).
+- Download the latest installer for your OS from the [Releases page](https://github.com/andreifoldes/tinyexplorer-facedetectionapp/releases).
 - Run the installer and launch the app.
 
 ### Build and Run Locally (fallback)
@@ -75,8 +75,8 @@ If no release exists for your system or the installer doesn’t work, you can bu
 - Build a distributable package: `npm run build`
 
 ### See Also (Documentation)
-- Basic Usage: https://andreifoldes.github.io/electron-python-face-recognition/#basic-usage
-- Supported File Formats: https://andreifoldes.github.io/electron-python-face-recognition/main-features/#supported-file-formats
+- Basic Usage: https://andreifoldes.github.io/tinyexplorer-facedetectionapp/#basic-usage
+- Supported File Formats: https://andreifoldes.github.io/tinyexplorer-facedetectionapp/main-features/#supported-file-formats
 
 ## Contact
 

@@ -4,8 +4,8 @@
 
 If you encounter problems, consult these resources:
 
-- Report bugs on the [GitHub issues page](https://github.com/andreifoldes/electron-python-face-recognition/issues)
-- Ask questions on [GitHub Discussions](https://github.com/andreifoldes/electron-python-face-recognition/discussions)
+- Report bugs on the [GitHub issues page](https://github.com/andreifoldes/tinyexplorer-facedetectionapp/issues)
+- Ask questions on [GitHub Discussions](https://github.com/andreifoldes/tinyexplorer-facedetectionapp/discussions)
 
 ## Error Messages
 1. Review the [FAQs](#faqs) below for quick answers.
@@ -17,6 +17,6 @@ If you encounter problems, consult these resources:
    - System information (OS, browser version, etc.)
 
 ## FAQs
-Visit the [Q&A section on GitHub Discussions](https://github.com/andreifoldes/electron-python-face-recognition/discussions/categories/q-a) for frequently asked questions. Start a new discussion if you need further help.
+Visit the [Q&A section on GitHub Discussions](https://github.com/andreifoldes/tinyexplorer-facedetectionapp/discussions/categories/q-a) for frequently asked questions. Start a new discussion if you need further help.
 
 We appreciate your feedback and contributions!
