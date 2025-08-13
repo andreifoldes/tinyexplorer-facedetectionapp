@@ -13,18 +13,18 @@
         "lint": "npm run main-lint && npm run react-lint",
         "start": "concurrently \"npm run react-start\" \"npm run main-start\"",
         "watch": "concurrently \"npm run main-watch\" \"npm run react-watch\"",
-    "build": "npm run python-build && npm run python-verify && npm run react-build && npm run main-build",
+        "build": "npm run python-build && npm run python-verify && npm run react-build && npm run main-build",
         "main-lint": "tslint -c tslint.json -p tsconfig.electronMain.json",
         "main-start": "tsc -p tsconfig.electronMain.json && wait-on http://localhost:3000/ && cross-env NODE_ENV=development electron .",
         "main-watch": "tsc -w -p tsconfig.electronMain.json",
         "main-build": "tsc -p tsconfig.electronMain.json && electron-builder",
         "react-lint": "tslint -c tslint.json -p tsconfig.json",
-        "react-start": "NODE_OPTIONS=\"--openssl-legacy-provider\" craco start",
+        "react-start": "cross-env NODE_OPTIONS=\"--openssl-legacy-provider\" craco start",
         "react-watch": "tsc -w -p tsconfig.json",
-        "react-build": "NODE_OPTIONS=\"--openssl-legacy-provider\" craco build",
-    "python-build": "node scripts/bundle-python.js",
-    "python-build-standalone": "node scripts/bundle-python-standalone.js",
-    "python-verify": "node scripts/verify-python-modules.js",
+        "react-build": "cross-env NODE_OPTIONS=\"--openssl-legacy-provider\" craco build",
+        "python-build": "node scripts/bundle-python.js",
+        "python-build-standalone": "node scripts/bundle-python-standalone.js",
+        "python-verify": "node scripts/verify-python-modules.js",
         "python-build-minimal": "shx rm -rf pythondist && shx mkdir -p pythondist && shx cp -r python/ pythondist/",
         "setup-dev-envs": "node -e \"console.log(process.platform === 'win32' ? 'Running Windows setup...' : 'Running Unix setup...')\" && node -e \"require('child_process').execSync(process.platform === 'win32' ? 'scripts\\\\setup-dev-environments.bat' : './scripts/setup-dev-environments.sh', {stdio: 'inherit'})\"",
         "test": "npm run test:gui",
@@ -44,9 +44,9 @@
         "typescript": "^4.9.5"
     },
     "devDependencies": {
-        "@craco/craco": "3.6.0",
         "@babel/plugin-transform-nullish-coalescing-operator": "^7.27.1",
         "@babel/plugin-transform-optional-chaining": "^7.27.1",
+        "@craco/craco": "3.6.0",
         "@playwright/test": "^1.53.2",
         "concurrently": "^4.1.0",
         "cross-env": "^5.2.0",
@@ -54,6 +54,7 @@
         "electron-builder": "^24.13.3",
         "playwright": "^1.53.2",
         "source-map-support": "^0.5.11",
+        "tar": "^7.4.3",
         "tslint": "^5.9.1",
         "tslint-config-standard": "^7.0.0",
         "tslint-loader": "^3.5.3",
@@ -74,12 +75,22 @@
         "productName": "TinyExplorer FaceDetectionApp",
         "forceCodeSigning": false,
         "mac": {
-            "identity": null,
-            "type": "distribution",
-            "hardenedRuntime": false,
-            "gatekeeperAssess": false
+            "target": [
+                {
+                    "target": "dmg",
+                    "arch": [
+                        "x64"
+                    ]
+                },
+                {
+                    "target": "zip",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "category": "public.app-category.developer-tools"
         },
-
         "directories": {
             "buildResources": "resources",
             "output": "dist"
@@ -103,7 +114,6 @@
                     "!**/*.pyo",
                     "!**/*.pyd",
                     "!**/*.whl",
-                    
                     "!**/include/**",
                     "!**/*.h",
                     "!**/*.hpp",
@@ -136,23 +146,6 @@
                 }
             ],
             "category": "Development"
-        },
-        "mac": {
-            "target": [
-                {
-                    "target": "dmg",
-                    "arch": [
-                        "x64"
-                    ]
-                },
-                {
-                    "target": "zip",
-                    "arch": [
-                        "x64"
-                    ]
-                }
-            ],
-            "category": "public.app-category.developer-tools"
         },
         "dmg": {
             "contents": [
