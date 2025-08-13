@@ -116,6 +116,7 @@ When you first launch the application, you'll see the main interface with all th
 </div>
 
 The main interface contains:
+
 - **File/Folder Selection** – choose images or videos for processing
 - **Model Selection** – pick the face detection model
 - **Confidence Threshold** – adjust detection sensitivity

@@ -12,7 +12,7 @@ TinyExplorer FaceDetectionApp is a desktop application designed for developmenta
 
 - **Concept and Project Management:** Teodor Nikolov & Hana D'Souza
 - **Lead Development and Implementation:** Tamas Foldes
-- **Additional Contributions:** Ziye Zhang
+- **Code Contributions:** Ziye Zhang & Teodor Nikolov
 
 ## Research Applications
 

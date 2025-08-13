@@ -62,5 +62,5 @@ See also: [Supported File Formats](main-features.md#supported-file-formats) and 
 **© Cardiff Babylab**
 
 **Concept and Project Management:** Teodor Nikolov & Hana D'Souza  
-**Lead Development:** Tamas Foldes  
-**Additional Contributions:** Ziye Zhang
+**Lead Development and Implementation:** Tamas Foldes  
+**Code Contributions:** Ziye Zhang & Teodor Nikolov

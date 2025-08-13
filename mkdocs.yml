@@ -6,6 +6,7 @@ repo_name: andreifoldes/tinyexplorer-facedetectionapp
 
 theme:
   name: material
+  custom_dir: docs/overrides
   logo: assets/images/dragon.png
   favicon: assets/images/dragon.png
   palette:
