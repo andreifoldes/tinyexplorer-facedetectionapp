@@ -27,6 +27,7 @@
     "python-verify": "node scripts/verify-python-modules.js",
         "python-build-minimal": "shx rm -rf pythondist && shx mkdir -p pythondist && shx cp -r python/ pythondist/",
         "setup-dev-envs": "node -e \"console.log(process.platform === 'win32' ? 'Running Windows setup...' : 'Running Unix setup...')\" && node -e \"require('child_process').execSync(process.platform === 'win32' ? 'scripts\\\\setup-dev-environments.bat' : './scripts/setup-dev-environments.sh', {stdio: 'inherit'})\"",
+        "test": "npm run test:gui",
         "test:gui": "playwright test",
         "test:gui:headed": "playwright test --headed"
     },
