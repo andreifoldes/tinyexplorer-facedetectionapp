@@ -56,9 +56,9 @@ jobs:
           exit 1
         fi
         
-        # Create a perfectly square 256x256 PNG using ImageMagick
+        # Create a perfectly square 256x256 PNG using ImageMagick with proper scaling
         echo "Creating square 256x256 PNG from $SOURCE_PNG"
-        magick "$SOURCE_PNG" -gravity center -extent 256x256 -background transparent resources/icons/square-256.png
+        magick "$SOURCE_PNG" -resize 256x256 -gravity center -extent 256x256 -background transparent resources/icons/square-256.png
         
         # Generate ICO from the square PNG
         echo "Generating ICO from square PNG"
