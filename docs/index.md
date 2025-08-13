@@ -1,3 +1,9 @@
+---
+title: TinyExplorer FaceDetectionApp
+description: Desktop face detection app for developmental research using YOLO and RetinaFace. Batch processing with CSV exports and visual outputs.
+image: assets/images/dragon.png
+---
+
 # TinyExplorer FaceDetectionApp
 
 <div align="center">
@@ -18,7 +24,7 @@ The TinyExplorer FaceDetectionApp is a user-friendly graphical interface designe
 ## Basic Usage
 
 ### Install a Prebuilt Release (recommended)
-- Download the latest installer for your OS from the [Releases page](https://github.com/andreifoldes/electron-python-face-recognition/releases).
+- Download the latest installer for your OS from the [Releases page](https://github.com/andreifoldes/tinyexplorer-facedetectionapp/releases).
 - Run the installer and launch the app.
 
 ### Build Locally with npm (fallback)
@@ -47,3 +53,14 @@ See also: [Supported File Formats](main-features.md#supported-file-formats) and 
 - [Advanced Options](advanced-options.md)
 - [Troubleshooting](troubleshooting.md)
 - [Support and Updates](support.md)
+- [About](about.md)
+
+---
+
+## Copyright & Attribution
+
+**© Cardiff Babylab**
+
+**Concept and Project Management:** Teodor Nikolov & Hana D'Souza  
+**Lead Development:** Tamas Foldes  
+**Additional Contributions:** Ziye Zhang

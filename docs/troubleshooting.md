@@ -1,7 +1,9 @@
 # Troubleshooting
 
 ## Common Issues
+
 If you encounter problems, consult these resources:
+
 - Report bugs on the [GitHub issues page](https://github.com/andreifoldes/electron-python-face-recognition/issues)
 - Ask questions on [GitHub Discussions](https://github.com/andreifoldes/electron-python-face-recognition/discussions)
 

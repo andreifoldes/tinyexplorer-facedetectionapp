@@ -1,5 +1,5 @@
 site_name: TinyExplorer FaceDetectionApp
-site_description: Demo documentation for the Electron + Python Face Recognition project
+site_description: Desktop face detection app for developmental research using YOLO and RetinaFace. Batch processing, CSV outputs, and cross‑platform builds.
 site_url: https://andreifoldes.github.io/tinyexplorer-facedetectionapp/
 repo_url: https://github.com/andreifoldes/tinyexplorer-facedetectionapp
 repo_name: andreifoldes/tinyexplorer-facedetectionapp
@@ -48,6 +48,7 @@ nav:
   - Advanced Options: advanced-options.md
   - Troubleshooting: troubleshooting.md
   - Support and Updates: support.md
+  - About: about.md
 
 plugins:
   - search
@@ -62,3 +63,4 @@ markdown_extensions:
       alternate_style: true
   - attr_list
   - md_in_html
+  - meta
