@@ -1,0 +1,23 @@
+name: electron-python-sample
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - retina-face>=0.0.14
+      - tf-keras
+      - git+https://github.com/akanametov/yolo-face.git
+      - opencv-python
+      - pillow
+      - numpy
+      - torch
+      - torchvision
+      - flask
+      - flask-cors
+      - flask-graphql
+      - flask-socketio
+      - graphene
+      - ultralytics
+      - tensorflow

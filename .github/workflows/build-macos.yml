@@ -1,0 +1,203 @@
+name: Build macOS
+
+on:
+  # push:
+  #   branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # Build only for Apple Silicon (ARM64)
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    env:
+      ARCH: arm64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install Node dependencies
+      run: npm ci
+
+    - name: Install tar module for Python bundling
+      run: npm install tar
+
+    - name: Build Python bundle with standalone interpreter
+      run: node scripts/bundle-python-standalone.js
+      env:
+        PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+    - name: Verify and test YOLO environment
+      env:
+        SMOKE_TEST_YOLO: '1'
+      run: |
+        YOLO_PY="$(pwd)/pythondist/yolo-env/bin/python"
+        
+        # Verify core YOLO requirements
+        "$YOLO_PY" - << 'PY'
+        import sys
+        
+        def check(mod_name, display=None):
+            try:
+                if mod_name == 'cv2':
+                    import cv2
+                    ver = cv2.__version__
+                elif mod_name == 'PIL':
+                    import PIL
+                    ver = PIL.__version__
+                elif mod_name == 'torch':
+                    import torch
+                    ver = torch.__version__
+                elif mod_name == 'torchvision':
+                    import torchvision
+                    ver = torchvision.__version__
+                elif mod_name == 'ultralytics':
+                    import ultralytics
+                    ver = ultralytics.__version__
+                else:
+                    mod = __import__(mod_name)
+                    ver = getattr(mod, '__version__', '0')
+                name = display or mod_name
+                print(f"OK: {name} {ver}")
+            except Exception as e:
+                print(f"FAIL: {mod_name} not usable: {e}")
+                sys.exit(1)
+        
+        check('numpy', display='numpy')
+        check('PIL', display='Pillow')
+        check('cv2', display='opencv-python')
+        check('torch', display='PyTorch')
+        check('torchvision', display='torchvision')
+        check('ultralytics', display='ultralytics')
+        PY
+        
+        # Smoke test YOLO import and basic functionality
+        node scripts/verify-python-modules.js
+
+    - name: Verify and test RetinaFace environment
+      env:
+        SMOKE_TEST_RETINAFACE: '1'
+      run: |
+        RF_PY="$(pwd)/pythondist/retinaface-env/bin/python"
+        
+        # Verify all requirements
+        "$RF_PY" - << 'PY'
+        import sys
+        import pkg_resources as pr
+
+        def check(mod_name, attr='__version__', min_ver=None, display=None):
+            try:
+                if mod_name == 'cv2':
+                    import cv2
+                    ver = cv2.__version__
+                elif mod_name == 'PIL':
+                    import PIL
+                    ver = PIL.__version__
+                else:
+                    mod = __import__(mod_name)
+                    ver = getattr(mod, attr, '0')
+                name = display or mod_name
+                if min_ver and pr.parse_version(ver) < pr.parse_version(min_ver):
+                    print(f"{name} {ver} < required {min_ver}")
+                    sys.exit(1)
+                print(f"OK: {name} {ver}")
+            except Exception as e:
+                print(f"FAIL: {mod_name} not usable: {e}")
+                sys.exit(1)
+
+        check('numpy', min_ver='1.14.0', display='numpy')
+        check('PIL',   min_ver='5.2.0',  display='Pillow')
+        check('cv2',   min_ver='3.4.4',  display='opencv-python')
+        check('tensorflow', min_ver='1.9.0', display='tensorflow')
+        check('gdown', min_ver='3.10.1', display='gdown')
+        check('retinaface', display='retina-face')
+        PY
+        
+        # Smoke test RetinaFace import and detect
+        node scripts/verify-python-modules.js
+
+    - name: Verify Python modules
+      run: npm run python-verify
+      env:
+        PIP_DISABLE_PIP_VERSION_CHECK: '1'
+        SMOKE_TEST_YOLO: '1'
+        SMOKE_TEST_RETINAFACE: '1'
+
+    - name: Build React app
+      run: |
+        # Verify craco is installed locally
+        npx craco --version || echo "craco version check failed"
+        # Use the npm script which already sets NODE_OPTIONS and flags
+        npm run react-build
+      env:
+        CI: false
+        GENERATE_SOURCEMAP: false
+
+    - name: Create macOS icon if missing
+      run: |
+        if [ ! -f resources/icon.icns ]; then
+          echo "Creating icon.icns from icon.png..."
+          mkdir -p resources/icon.iconset
+          sips -z 16 16     resources/icon.png --out resources/icon.iconset/icon_16x16.png
+          sips -z 32 32     resources/icon.png --out resources/icon.iconset/icon_16x16@2x.png
+          sips -z 32 32     resources/icon.png --out resources/icon.iconset/icon_32x32.png
+          sips -z 64 64     resources/icon.png --out resources/icon.iconset/icon_32x32@2x.png
+          sips -z 128 128   resources/icon.png --out resources/icon.iconset/icon_128x128.png
+          sips -z 256 256   resources/icon.png --out resources/icon.iconset/icon_128x128@2x.png
+          sips -z 256 256   resources/icon.png --out resources/icon.iconset/icon_256x256.png
+          sips -z 512 512   resources/icon.png --out resources/icon.iconset/icon_256x256@2x.png
+          sips -z 512 512   resources/icon.png --out resources/icon.iconset/icon_512x512.png
+          sips -z 1024 1024 resources/icon.png --out resources/icon.iconset/icon_512x512@2x.png
+          iconutil -c icns resources/icon.iconset -o resources/icon.icns
+          rm -rf resources/icon.iconset
+        else
+          echo "icon.icns already exists"
+        fi
+
+    - name: Build Electron main process
+      run: |
+        npx tsc -p tsconfig.electronMain.json
+        # Build DMG for Apple Silicon (arm64) to match the Python architecture
+        npx electron-builder --mac dmg --arm64 --publish=never
+      env:
+        ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
+        PYTHON: python3
+
+    - name: Remove quarantine attributes from built app
+      run: |
+        # Find and remove quarantine from .app bundles to prevent "damaged app" errors
+        for app in dist/*.app; do
+          if [ -d "$app" ]; then
+            echo "Removing quarantine attributes from: $app"
+            xattr -cr "$app" || true
+            # Verify removal
+            if xattr -l "$app" 2>/dev/null | grep -q "com.apple.quarantine"; then
+              echo "Warning: Quarantine still present on $app"
+            else
+              echo "Successfully cleaned: $app"
+            fi
+          fi
+        done
+
+    - name: List build artifacts
+      run: ls -la dist/ || echo "No dist directory"
+
+    - name: Upload macOS artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-arm64-native
+        path: |
+          dist/*.dmg
+          dist/*.zip
+          dist/*.app
+        if-no-files-found: warn

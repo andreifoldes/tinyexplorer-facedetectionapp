@@ -1,0 +1,24 @@
+name: electron-python-yolo
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - torch
+      - torchvision
+      - ultralytics
+      - opencv-python
+      - pillow
+      - numpy
+      - omegaconf
+      - seaborn
+      - matplotlib
+      - psutil
+      - py-cpuinfo
+      - flask
+      - flask-cors
+      - flask-graphql
+      - flask-socketio
+      - graphene

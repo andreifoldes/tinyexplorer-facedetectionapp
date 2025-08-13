@@ -1,0 +1,216 @@
+{
+    "name": "tinyexplorer-facedetectionapp",
+    "version": "0.1.0",
+    "private": true,
+    "homepage": "./",
+    "author": {
+        "name": "Tamas Foldes",
+        "email": "tamas.foldes@oii.ox.ac.uk"
+    },
+    "description": "Electron application with Python Flask backend for face detection using YOLO models",
+    "main": "buildMain/index.js",
+    "scripts": {
+        "lint": "npm run main-lint && npm run react-lint",
+        "start": "concurrently \"npm run react-start\" \"npm run main-start\"",
+        "watch": "concurrently \"npm run main-watch\" \"npm run react-watch\"",
+    "build": "npm run python-build && npm run python-verify && npm run react-build && npm run main-build",
+        "main-lint": "tslint -c tslint.json -p tsconfig.electronMain.json",
+        "main-start": "tsc -p tsconfig.electronMain.json && wait-on http://localhost:3000/ && cross-env NODE_ENV=development electron .",
+        "main-watch": "tsc -w -p tsconfig.electronMain.json",
+        "main-build": "tsc -p tsconfig.electronMain.json && electron-builder",
+        "react-lint": "tslint -c tslint.json -p tsconfig.json",
+        "react-start": "NODE_OPTIONS=\"--openssl-legacy-provider\" craco start",
+        "react-watch": "tsc -w -p tsconfig.json",
+        "react-build": "NODE_OPTIONS=\"--openssl-legacy-provider\" craco build",
+    "python-build": "node scripts/bundle-python.js",
+    "python-build-standalone": "node scripts/bundle-python-standalone.js",
+    "python-verify": "node scripts/verify-python-modules.js",
+        "python-build-minimal": "shx rm -rf pythondist && shx mkdir -p pythondist && shx cp -r python/ pythondist/",
+        "setup-dev-envs": "node -e \"console.log(process.platform === 'win32' ? 'Running Windows setup...' : 'Running Unix setup...')\" && node -e \"require('child_process').execSync(process.platform === 'win32' ? 'scripts\\\\setup-dev-environments.bat' : './scripts/setup-dev-environments.sh', {stdio: 'inherit'})\"",
+        "test": "npm run test:gui",
+        "test:gui": "playwright test",
+        "test:gui:headed": "playwright test --headed"
+    },
+    "dependencies": {
+        "@types/cross-spawn": "^6.0.0",
+        "@types/node": "^11.11.3",
+        "@types/react": "^16.8.8",
+        "@types/react-dom": "^16.8.2",
+        "cross-spawn": "^6.0.5",
+        "react": "^16.8.4",
+        "react-dom": "^16.8.4",
+        "react-scripts": "3.0.1",
+        "shx": "^0.3.2",
+        "typescript": "^4.9.5"
+    },
+    "devDependencies": {
+        "@craco/craco": "3.6.0",
+        "@babel/plugin-transform-nullish-coalescing-operator": "^7.27.1",
+        "@babel/plugin-transform-optional-chaining": "^7.27.1",
+        "@playwright/test": "^1.53.2",
+        "concurrently": "^4.1.0",
+        "cross-env": "^5.2.0",
+        "electron": "^25.9.8",
+        "electron-builder": "^24.13.3",
+        "playwright": "^1.53.2",
+        "source-map-support": "^0.5.11",
+        "tslint": "^5.9.1",
+        "tslint-config-standard": "^7.0.0",
+        "tslint-loader": "^3.5.3",
+        "tslint-react": "^3.4.0",
+        "wait-on": "^3.2.0"
+    },
+    "eslintConfig": {
+        "extends": "react-app"
+    },
+    "browserslist": [
+        ">0.2%",
+        "not dead",
+        "not ie <= 11",
+        "not op_mini all"
+    ],
+    "build": {
+        "appId": "com.example.tinyexplorer-facedetectionapp",
+        "productName": "TinyExplorer FaceDetectionApp",
+        "forceCodeSigning": false,
+        "mac": {
+            "identity": null,
+            "type": "distribution",
+            "hardenedRuntime": false,
+            "gatekeeperAssess": false
+        },
+
+        "directories": {
+            "buildResources": "resources",
+            "output": "dist"
+        },
+        "extraMetadata": {
+            "main": "buildMain/index.js"
+        },
+        "files": [
+            "node_modules/**",
+            "buildMain/**",
+            "build/**"
+        ],
+        "extraResources": [
+            {
+                "from": "pythondist",
+                "to": "pythondist",
+                "filter": [
+                    "**/*",
+                    "!**/__pycache__/**",
+                    "!**/*.pyc",
+                    "!**/*.pyo",
+                    "!**/*.pyd",
+                    "!**/*.whl",
+                    
+                    "!**/include/**",
+                    "!**/*.h",
+                    "!**/*.hpp",
+                    "!**/*.hh"
+                ]
+            }
+        ],
+        "linux": {
+            "desktop": {
+                "Name": "TinyExplorer FaceDetectionApp",
+                "Comment": "Face detection using YOLO models",
+                "Keywords": "face;detection;yolo;ai;ml;",
+                "Categories": "Development;Science;Graphics;"
+            },
+            "extraFiles": [
+                {
+                    "from": "build/appimage",
+                    "to": ".",
+                    "filter": [
+                        "**/*"
+                    ]
+                }
+            ],
+            "target": [
+                {
+                    "target": "AppImage",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "category": "Development"
+        },
+        "mac": {
+            "target": [
+                {
+                    "target": "dmg",
+                    "arch": [
+                        "x64"
+                    ]
+                },
+                {
+                    "target": "zip",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "category": "public.app-category.developer-tools"
+        },
+        "dmg": {
+            "contents": [
+                {
+                    "x": 130,
+                    "y": 220
+                },
+                {
+                    "x": 410,
+                    "y": 220,
+                    "type": "link",
+                    "path": "/Applications"
+                }
+            ],
+            "window": {
+                "width": 540,
+                "height": 380
+            },
+            "title": "Install ${productName}",
+            "background": null,
+            "icon": "resources/icon.icns",
+            "internetEnabled": true
+        },
+        "win": {
+            "icon": "resources/icon.ico",
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                },
+                {
+                    "target": "zip",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ]
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true
+        },
+        "appImage": {
+            "desktop": "build/appimage/tinyexplorer-facedetectionapp.desktop",
+            "category": "Development",
+            "synopsis": "Face detection using YOLO models"
+        },
+        "fileAssociations": [
+            {
+                "ext": "appimage",
+                "name": "AppImage Application",
+                "description": "Portable application",
+                "icon": "graphics/icons/dragon-512.png"
+            }
+        ],
+        "asar": true,
+        "extends": null
+    }
+}

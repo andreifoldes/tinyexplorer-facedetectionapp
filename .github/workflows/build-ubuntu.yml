@@ -1,0 +1,86 @@
+name: Build Ubuntu
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Force expose python3.10 & set build env vars
+      run: |
+        set -e
+        echo "Python at $(which python)"
+        python --version
+        if ! command -v python3.10 >/dev/null 2>&1; then
+          mkdir -p "$GITHUB_WORKSPACE/bin"
+          ln -s "$(which python)" "$GITHUB_WORKSPACE/bin/python3.10"
+          echo "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+          echo "Created python3.10 alias.";
+        fi
+        echo "BUNDLED_PYTHON_310=$(which python)" >> $GITHUB_ENV
+        echo "RETINAFACE_PYTHON=$(which python)" >> $GITHUB_ENV
+        echo "PYTHON_FOR_RETINAFACE=$(which python)" >> $GITHUB_ENV
+
+    - name: Install Node dependencies
+      run: npm ci
+
+    - name: Build Python bundle
+      run: npm run python-build
+      env:
+        RETINAFACE_PYTHON: ${RETINAFACE_PYTHON}
+        BUNDLED_PYTHON_310: ${BUNDLED_PYTHON_310}
+        PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+    - name: Verify Python modules
+      run: npm run python-verify
+      env:
+        PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+    - name: Install AppImage dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends libfuse2
+
+    - name: Build React app
+      run: |
+        npx craco --version || echo "craco version check failed"
+        npm run react-build
+      env:
+        CI: false
+        GENERATE_SOURCEMAP: false
+
+    - name: Build Electron main process
+      run: |
+        npx tsc -p tsconfig.electronMain.json
+        npx electron-builder --linux appimage --publish=never
+      env:
+        ELECTRON_BUILDER_CACHE: /tmp/electron-builder-cache
+        PYTHON: python3
+
+    - name: List build artifacts
+      run: ls -la dist/ || echo "No dist directory"
+
+    - name: Upload Ubuntu artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ubuntu-build
+        path: |
+          dist/*.AppImage
+        if-no-files-found: warn

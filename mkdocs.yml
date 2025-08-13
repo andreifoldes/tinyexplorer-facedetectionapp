@@ -1,0 +1,64 @@
+site_name: TinyExplorer FaceDetectionApp
+site_description: Demo documentation for the Electron + Python Face Recognition project
+site_url: https://andreifoldes.github.io/electron-python-face-recognition/
+repo_url: https://github.com/andreifoldes/electron-python-face-recognition
+repo_name: andreifoldes/electron-python-face-recognition
+
+theme:
+  name: material
+  logo: assets/images/dragon.png
+  favicon: assets/images/dragon.png
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: red
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: red
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  font:
+    text: Roboto
+    code: Roboto Mono
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Main Features: main-features.md
+  - Understanding Results: understanding-results.md
+  - Advanced Options: advanced-options.md
+  - Troubleshooting: troubleshooting.md
+  - Support and Updates: support.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html

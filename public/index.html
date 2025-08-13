@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.ico" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, shrink-to-fit=no"
+        />
+        <meta name="theme-color" content="#000000" />
+        <!--
+            manifest.json provides metadata used when your web app is installed on a
+            user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+        -->
+        <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+        <!--
+            Notice the use of %PUBLIC_URL% in the tags above.
+            It will be replaced with the URL of the `public` folder during the build.
+            Only files inside the `public` folder can be referenced from the HTML.
+
+            Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
+            work correctly both with client-side routing and a non-root public URL.
+            Learn how to configure a non-root public URL by running `npm run build`.
+        -->
+        <title>TinyExplorer FaceDetectionApp</title>
+    </head>
+    <body>
+        <noscript>You need to enable JavaScript to run this app.</noscript>
+        <div id="root"></div>
+        <script>
+            //
+            // Check if we're running in Electron and if so do a bit of cleanup
+            //
+            if (typeof(require) === "undefined") {
+                window.isInElectronRenderer = false;
+                // Create IPC renderer stub for web mode
+                window.ipcRendererStub = {
+                    callbacks: {},
+                    on: function(channel, callback) {
+                        if (channel === "pythonStatus") {
+                            // Mock Python status for web mode
+                            setTimeout(() => {
+                                callback({}, {
+                                    ready: true,
+                                    pid: 12345
+                                });
+                            }, 100);
+                        } else {
+                            this.callbacks[channel] = callback;
+                        }
+                    },
+                    once: function(channel, callback) {
+                        this.callbacks[channel] = callback;
+                    },
+                    removeAllListeners: function(channel) {
+                        delete this.callbacks[channel];
+                    },
+                    removeListener: function(channel, callback) {
+                        delete this.callbacks[channel];
+                    },
+                    send: function(channel, data) {
+                        console.log("IPC stub send:", channel, data === undefined ? "" : data);
+                        
+                        if (channel === "python-command") {
+                            // Mock Python command responses for web mode
+                            setTimeout(() => {
+                                if (this.callbacks['python-response']) {
+                                    let response;
+                                    if (data.type === 'get_models') {
+                                        response = {
+                                            response: {
+                                                status: 'success',
+                                                models: ['yolov8n.pt', 'yolov8l-face.pt']
+                                            }
+                                        };
+                                    } else {
+                                        response = {
+                                            response: {
+                                                status: 'success',
+                                                message: 'Mock response'
+                                            }
+                                        };
+                                    }
+                                    this.callbacks['python-response']({}, response);
+                                }
+                            }, 100);
+                        } else if (channel === "getPythonStatus") {
+                            // Mock Python status response
+                            setTimeout(() => {
+                                if (this.callbacks['pythonStatus']) {
+                                    this.callbacks['pythonStatus']({}, {
+                                        ready: true,
+                                        pid: 12345
+                                    });
+                                }
+                            }, 100);
+                        } else if (channel === "browse-file") {
+                            // Create file input for file selection
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.onchange = (e) => {
+                                if (e.target.files.length > 0) {
+                                    const file = e.target.files[0];
+                                    const filePath = file.name; // In real scenario this would be full path
+                                    if (this.callbacks['selected-folder']) {
+                                        this.callbacks['selected-folder']({}, filePath);
+                                    }
+                                }
+                            };
+                            input.click();
+                        } else if (channel === "browse-folder") {
+                            // Create file input with webkitdirectory for folder selection
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.webkitdirectory = true;
+                            input.onchange = (e) => {
+                                if (e.target.files.length > 0) {
+                                    // Get the common path (folder name)
+                                    const firstFile = e.target.files[0];
+                                    const pathParts = firstFile.webkitRelativePath.split('/');
+                                    const folderName = pathParts[0];
+                                    if (this.callbacks['selected-folder']) {
+                                        this.callbacks['selected-folder']({}, folderName);
+                                    }
+                                }
+                            };
+                            input.click();
+                        }
+                    }
+                };
+            } else {
+                window.isInElectronRenderer = true;
+                // see https://electron.atom.io/docs/faq/ 
+                // we are using this to avoid issues described in https://stackoverflow.com/a/38556376
+                window.nodeRequire = require;
+                //delete window.require;
+                delete window.exports;
+                delete window.module;
+            }
+        </script>
+    </body>
+</html>

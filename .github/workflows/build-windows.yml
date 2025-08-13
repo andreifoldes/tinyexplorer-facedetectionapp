@@ -1,0 +1,167 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Force expose python3.10 & set build env vars
+      shell: pwsh
+      run: |
+        Write-Host "Python at $env:pythonLocation\python.exe"
+        & $env:pythonLocation\python.exe --version
+        # actions/setup-python places the interpreter in pythonLocation; set env vars
+        Add-Content -Path $env:GITHUB_ENV -Value "BUNDLED_PYTHON_310=$($env:pythonLocation)\python.exe"
+        Add-Content -Path $env:GITHUB_ENV -Value "RETINAFACE_PYTHON=$($env:pythonLocation)\python.exe"
+        Add-Content -Path $env:GITHUB_ENV -Value "PYTHON_FOR_RETINAFACE=$($env:pythonLocation)\python.exe"
+
+    - name: Install Node dependencies
+      run: npm ci
+
+    - name: Install ImageMagick
+      run: choco install imagemagick -y
+      
+    - name: Generate square PNG and ICO
+      shell: bash
+      run: |
+        # Find the largest available PNG icon
+        for size in 1024 512 256 128; do
+          if [ -f "resources/icons/${size}x${size}.png" ]; then
+            SOURCE_PNG="resources/icons/${size}x${size}.png"
+            echo "Using $SOURCE_PNG as source"
+            break
+          fi
+        done
+        
+        if [ -z "$SOURCE_PNG" ]; then
+          echo "Error: No PNG icon found"
+          exit 1
+        fi
+        
+        # Create a perfectly square 256x256 PNG using ImageMagick
+        echo "Creating square 256x256 PNG from $SOURCE_PNG"
+        magick "$SOURCE_PNG" -gravity center -extent 256x256 -background transparent resources/icons/square-256.png
+        
+        # Generate ICO from the square PNG
+        echo "Generating ICO from square PNG"
+        npx --yes png-to-ico resources/icons/square-256.png > resources/icon.ico
+        
+        # Verify ICO was created
+        if [ ! -f "resources/icon.ico" ]; then
+          echo "Error: Failed to create icon.ico"
+          exit 1
+        fi
+        echo "Successfully created resources/icon.ico"
+    - name: Build Python bundle
+      run: npm run python-build
+      env:
+        RETINAFACE_PYTHON: ${{ env.RETINAFACE_PYTHON }}
+        BUNDLED_PYTHON_310: ${{ env.BUNDLED_PYTHON_310 }}
+        PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+    - name: Verify and test YOLO environment
+      shell: bash
+      env:
+        SMOKE_TEST_YOLO: '1'
+      run: |
+        YOLO_PY="$(pwd)/pythondist/yolo-env/python.exe"
+
+        # Verify core YOLO requirements
+        "$YOLO_PY" - <<'PY'
+        import sys
+
+        def check(mod_name, display=None):
+            try:
+                if mod_name == 'cv2':
+                    import cv2
+                    ver = cv2.__version__
+                elif mod_name == 'PIL':
+                    import PIL
+                    ver = PIL.__version__
+                elif mod_name == 'torch':
+                    import torch
+                    ver = torch.__version__
+                elif mod_name == 'torchvision':
+                    import torchvision
+                    ver = torchvision.__version__
+                elif mod_name == 'ultralytics':
+                    import ultralytics
+                    ver = ultralytics.__version__
+                else:
+                    mod = __import__(mod_name)
+                    ver = getattr(mod, '__version__', '0')
+                name = display or mod_name
+                print(f"OK: {name} {ver}")
+            except Exception as e:
+                print(f"FAIL: {mod_name} not usable: {e}")
+                sys.exit(1)
+
+        check('numpy', display='numpy')
+        check('PIL', display='Pillow')
+        check('cv2', display='opencv-python')
+        check('torch', display='PyTorch')
+        check('torchvision', display='torchvision')
+        check('ultralytics', display='ultralytics')
+        PY
+
+        # Smoke test YOLO import and basic functionality
+        node scripts/verify-python-modules.js
+
+    - name: Verify Python modules
+      run: npm run python-verify
+      shell: pwsh
+      env:
+        PIP_DISABLE_PIP_VERSION_CHECK: '1'
+        SMOKE_TEST_YOLO: '1'
+        SMOKE_TEST_RETINAFACE: '1'
+
+    - name: Build React app
+      shell: pwsh
+      run: |
+        npx craco --version || echo "craco version check failed"
+        # Set NODE_OPTIONS for legacy OpenSSL support and run React build
+        $env:NODE_OPTIONS = "--openssl-legacy-provider"
+        $env:CI = "false"
+        $env:GENERATE_SOURCEMAP = "false"
+        npx craco build
+      env:
+        CI: false
+        GENERATE_SOURCEMAP: false
+
+    - name: Build Electron main process
+      run: |
+        npx tsc -p tsconfig.electronMain.json
+        npx electron-builder --win --x64 --publish=never
+      env:
+        ELECTRON_BUILDER_CACHE: ${{ runner.temp }}\electron-builder-cache
+        PYTHON: python
+
+    - name: List build artifacts
+      run: dir dist\ || echo "No dist directory"
+      shell: cmd
+
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: |
+          dist/*.exe
+        if-no-files-found: warn
