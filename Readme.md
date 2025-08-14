@@ -67,9 +67,9 @@ If you have ideas for new features, improvements, or bug fixes, please feel free
 - Run the installer and launch the app.
 
 ### Build and Run Locally (fallback)
-If no release exists for your system or the installer doesn’t work, you can build locally.
+If no release exists for your system or the installer doesn't work, you can build locally.
 
-- Ensure Node.js and npm are installed.
+- Ensure [Node.js](https://nodejs.org/) and [npm](https://www.npmjs.com/) are installed.
 - Install dependencies: `npm install`
 - Start in development: `npm run start`
 - Build a distributable package: `npm run build`
