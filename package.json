@@ -191,9 +191,6 @@
             "allowToChangeInstallationDirectory": true,
             "allowElevation": true,
             "perMachine": false,
-            "installerSidebar": "resources/installerSidebar.bmp",
-            "uninstallerSidebar": "resources/installerSidebar.bmp",
-            "include": "resources/installer.nsh",
             "warningsAsErrors": false,
             "artifactName": "${name}-${version}-setup.${ext}",
             "deleteAppDataOnUninstall": false
