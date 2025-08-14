@@ -13,8 +13,8 @@
 !define ConsoleLog "!insertmacro ConsoleLog"
 
 !macro customHeader
-  ; Enable console output for logging
-  !define MUI_VERBOSE 4
+  ; Console output is enabled through other mechanisms
+  ; MUI_VERBOSE is already defined by the system, so we don't redefine it
 !macroend
 
 !macro customInit
