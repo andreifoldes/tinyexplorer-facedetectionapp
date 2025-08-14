@@ -1,21 +1,20 @@
+; Include required libraries
+!include "LogicLib.nsh"
+
+; Custom logging macro - defined at top level
+!macro ConsoleLog Text
+  ${If} ${Silent}
+    System::Call 'kernel32::GetStdHandle(i -11)i.r0'
+    System::Call 'kernel32::WriteConsole(i r0, t "${Text}$\r$\n", i ${NSIS_MAX_STRLEN}, *i .r1, i 0)'
+  ${EndIf}
+  DetailPrint "${Text}"
+!macroend
+
+!define ConsoleLog "!insertmacro ConsoleLog"
+
 !macro customHeader
   ; Enable console output for logging
   !define MUI_VERBOSE 4
-  
-  ; Add support for silent installation with console output
-  ; This allows tracking progress when running from command line
-  !include "LogicLib.nsh"
-  
-  ; Custom logging function
-  !macro ConsoleLog Text
-    ${If} ${Silent}
-      System::Call 'kernel32::GetStdHandle(i -11)i.r0'
-      System::Call 'kernel32::WriteConsole(i r0, t "${Text}$\r$\n", i ${NSIS_MAX_STRLEN}, *i .r1, i 0)'
-    ${EndIf}
-    DetailPrint "${Text}"
-  !macroend
-  
-  !define ConsoleLog "!insertmacro ConsoleLog"
 !macroend
 
 !macro customInit
